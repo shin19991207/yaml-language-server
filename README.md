@@ -37,63 +37,51 @@ Completion and hover content are schema-driven. Configure schemas with a modelin
 
 Settings are supplied through LSP configuration. Setting names match the `yaml.*` configuration used by common integrations.
 
-- `yaml.yamlVersion`: YAML specification version (`1.2` or `1.1`). Defaults to `1.2`.
-- `yaml.maxItemsComputed`: Maximum number of outline symbols and folding regions computed. Defaults to `5000`.
-- `yaml.format.enable`: Controls document formatting. Defaults to `true`.
+- `yaml.yamlVersion`: Set default YAML spec version (`1.2` or `1.1`). Defaults to `1.2`.
+- `yaml.maxItemsComputed`: The maximum number of outline symbols and folding regions computed (limited for performance reasons). Defaults to `5000`.
+- `yaml.format.enable`: Enable/disable default YAML formatter. Defaults to `true`.
 - `yaml.format.singleQuote`: Use single quotes instead of double quotes. Defaults to `false`.
 - `yaml.format.bracketSpacing`: Print spaces between brackets in objects. Defaults to `true`.
-- `yaml.format.proseWrap`: Control prose wrapping (`always`, `never`, or `preserve`). Defaults to `preserve`.
-- `yaml.format.printWidth`: Line length used by the formatter. Defaults to `80`.
-- `yaml.format.trailingComma`: Use trailing commas in JSON-like YAML segments. Defaults to `true`.
-- `yaml.validate`: Controls validation. Defaults to `true`.
-- `yaml.hover`: Controls hover. Defaults to `true`.
-- `yaml.hoverAnchor`: Shows anchor information in hover when enabled. Defaults to `true`.
-- `yaml.hoverSchemaSource`: Shows the schema source in hover when enabled. Defaults to `true`.
-- `yaml.completion`: Controls completion. Defaults to `true`.
-- `yaml.disableDefaultProperties`: Prevents completion from inserting optional properties that have default values. Defaults to `false`.
-- `yaml.suggest.parentSkeletonSelectedFirst`: Requires selecting a parent skeleton before nested property suggestions are shown. When the YAML object is not empty, the server returns all properties and skeletons. Defaults to `false`.
-- `yaml.schemas`: Associates schemas with files using glob patterns. No schemas are associated by this setting by default. See [Associating Schemas](#associating-schemas).
-- `yaml.disableSchemaDetection`: Prevents schema detection for YAML files matching a glob pattern or list of glob patterns. Defaults to an empty list. Modelines still apply.
-- `yaml.schemaStore.enable`: Controls loading YAML schema associations from [Schema Store](https://www.schemastore.org). Defaults to `true`.
-- `yaml.schemaStore.url`: Schema Store catalog URL. Defaults to `https://www.schemastore.org/api/json/catalog.json`.
-- `yaml.customTags`: Custom tags passed to the YAML parser. Defaults to an empty list. See [Adding Custom Tags](#adding-custom-tags).
-- `yaml.disableAdditionalProperties`: Treat objects without `additionalProperties` as if `additionalProperties` were `false`. Defaults to `false`.
-- `yaml.kubernetesCRDStore.enable`: Controls validation of Kubernetes custom resources using schemas from a CRD catalog. Defaults to `true`.
-- `yaml.kubernetesCRDStore.url`: CRD catalog base URL. Defaults to `https://raw.githubusercontent.com/datreeio/CRDs-catalog/main`.
-- `yaml.style.flowMapping`: Control flow style mappings. Use `forbid` to reject flow style mappings. Defaults to `allow`.
-- `yaml.style.flowSequence`: Control flow style sequences. Use `forbid` to reject flow style sequences. Defaults to `allow`.
-- `yaml.keyOrdering`: Enforce alphabetical key ordering in mappings. Defaults to `false`.
-- `http.proxy`: Proxy URL used when downloading schemas. If omitted, no proxy is used.
-- `http.proxyStrictSSL`: Verify proxy server certificates against the list of supplied certificate authorities. Defaults to `false`.
-
-The server also reads `[yaml].editor.tabSize` when it is provided. This setting controls the indentation width used for generated YAML text. If it is not provided, indentation-sensitive features infer indentation from the document and fall back to 2 spaces when needed.
-
-On-type formatting is supported when an integration sends newline-triggered on-type formatting requests.
+- `yaml.format.proseWrap`: Control prose wrapping behavior. `always`: wrap prose if it exceeds the print width, `never`: never wrap the prose, `preserve`: wrap prose as-is. Defaults to `preserve`.
+- `yaml.format.printWidth`: Specify the line length that the printer will wrap on. Defaults to `80`.
+- `yaml.format.trailingComma`: Specify if trailing commas should be used in JSON-like segments of the YAML. Defaults to `true`.
+- `yaml.validate`: Enable/disable validation feature. Defaults to `true`.
+- `yaml.hover`: Enable/disable hover. Defaults to `true`.
+- `yaml.hoverAnchor`: Enable/disable hover feature for anchors. Defaults to `true`.
+- `yaml.hoverSchemaSource`: Enable/disable showing the schema source in hover tooltips. Defaults to `true`.
+- `yaml.completion`: Enable/disable autocompletion. Defaults to `true`.
+- `yaml.disableDefaultProperties`: Disable adding not required properties with default values into completion text. Defaults to `false`.
+- `yaml.suggest.parentSkeletonSelectedFirst`: If true, the user must select some parent skeleton first before autocompletion starts to suggest the rest of the properties. When the YAML object is not empty, autocompletion ignores this setting and returns all properties and skeletons. Defaults to `false`.
+- `yaml.schemas`: Associate schemas with files using glob patterns. See [Associating schemas](#associating-schemas) for details.
+- `yaml.disableSchemaDetection`: Disable schema detection for YAML files matching the configured glob pattern or list of glob patterns. Modelines still apply.
+- `yaml.schemaStore.enable`: When set to true, the YAML language server will pull in all available schemas from [JSON Schema Store](http://schemastore.org/). Defaults to `true`.
+- `yaml.schemaStore.url`: URL of a schema store catalog to use when downloading schemas. Defaults to `https://www.schemastore.org/api/json/catalog.json`.
+- `yaml.customTags`: Array of custom tags that the parser will validate against. It has three ways to be used. A tag without a type, such as "!Ref", is treated as a scalar tag. A tag with a node type, such as "!Ref sequence", specifies the YAML node type that the tag is written on. A tag with a node type and return type, such as "!FindInMap sequence:string", also specifies the schema type that the tagged value evaluates to. Supported node types are scalar, sequence, and mapping. Supported return types are string, number, integer, boolean, null, array, and object. The return type aliases scalar, sequence, and mapping are accepted as string, array, and object. See [Adding custom tags](#adding-custom-tags) for usage details.
+- `yaml.disableAdditionalProperties`: Globally set `additionalProperties` to `false` for all objects. When enabled, no extra properties are allowed in YAML objects beyond those defined in the schema. Defaults to `false`.
+- `yaml.kubernetesCRDStore.enable`: Enable/disable validation of Kubernetes custom resources using schemas from well-known Custom Resource Definitions (CRDs). Defaults to `true`.
+- `yaml.kubernetesCRDStore.url`: The base URL for fetching well-known Custom Resource Definition (CRD) schemas. Defaults to `https://raw.githubusercontent.com/datreeio/CRDs-catalog/main`.
+- `yaml.kubernetesVersion`: Kubernetes version used to build the schema URL when `yaml.schemas` maps files to the `kubernetes` keyword. If omitted, the extension falls back to a predefined default Kubernetes version.
+- `yaml.style.flowMapping`: Control flow style mappings. Forbids flow style mappings if set to `forbid`. Defaults to `allow`.
+- `yaml.style.flowSequence`: Control flow style sequences. Forbids flow style sequences if set to `forbid`. Defaults to `allow`.
+- `yaml.keyOrdering`: Enforces alphabetical ordering of keys in mappings when set to `true`. Defaults to `false`.
+- `http.proxy`: The URL of the proxy server that will be used when attempting to download a schema. If it is not set or it is undefined, no proxy server will be used.
+- `http.proxyStrictSSL`: If true, the proxy server certificate should be verified against the list of supplied CAs. Defaults to `false`.
+- `[yaml].editor.tabSize`: Number of spaces to use for YAML indentation. When provided, this setting is used for generated completion text. Defaults to `2`.
+- `editor.tabSize`: Fallback indentation size when no YAML-specific tab size is provided. Defaults to `2`.
+- `[yaml].editor.formatOnType`: Client/editor setting that controls whether on-type formatting requests are sent for YAML files. When enabled by the client, `yaml-language-server` can format YAML as the user types, such as adjusting indentation after a newline.
 
 ## Associating Schemas
 
-YAML language features use JSON Schema to understand the shape of a YAML file, including value sets, defaults, and descriptions. Schema documents can be written in JSON (`.json`) or YAML (`.yaml`) format.
+YAML Language Server uses [JSON Schema](https://json-schema.org/) to understand the shape of a YAML file. It supports JSON Schema Draft 4, Draft 7, Draft 2019-09, and Draft 2020-12. Schema definitions can be written in JSON (`.json`) or YAML (`.yaml`).
 
-Schemas can be associated with YAML files by using a modeline, configuring `yaml.schemas`, sending schema association notifications, or enabling Schema Store.
+You can associate schemas with YAML files by adding a modeline or configuring `yaml.schemas` through your LSP client. When `yaml.schemaStore.enable` is enabled, as it is by default, YAML Language Server also associates schemas from [SchemaStore](https://www.schemastore.org/) with files that match their configured patterns.
 
 ### Using a Modeline
 
-A modeline associates a schema directly from a YAML file:
+You can specify a JSON schema directly in a YAML file with a modeline comment. If a relative path is specified, it is resolved from the YAML file location, not from the workspace root.
 
 ```yaml
 # yaml-language-server: $schema=<urlToTheSchema>
-```
-
-Relative paths in modelines are resolved from the YAML file location:
-
-```yaml
-# yaml-language-server: $schema=../relative/path/to/schema
-```
-
-Absolute paths are also supported:
-
-```yaml
-# yaml-language-server: $schema=/absolute/path/to/schema
 ```
 
 The IntelliJ-compatible `$schema` comment format is also supported:
@@ -102,23 +90,22 @@ The IntelliJ-compatible `$schema` comment format is also supported:
 # $schema: <urlOrPathToTheSchema>
 ```
 
-A modeline can also disable schema validation for the current file. See [Disabling Schema Validation](#disabling-schema-validation).
-
 ### Using `yaml.schemas`
 
-The `yaml.schemas` setting maps schemas to file patterns:
-
-- **Key**: Schema URI, local file path, or the `kubernetes` keyword
-- **Value**: A glob pattern or array of glob patterns
+The `yaml.schemas` setting maps schemas to file patterns using key-value pairs:
+* **Key**: Schema URI, local file path, or the `kubernetes` keyword
+* **Value**: A glob pattern or array of glob patterns
 
 #### Remote Schemas
 
 Associate an online schema with YAML files:
 
-```yaml
-yaml.schemas: {
-  "https://json.schemastore.org/composer": "composer.yaml",
-  "https://example.com/api-schema.json": ["api/*.yml", "api/*.yaml"]
+```json
+{
+  "yaml.schemas": {
+    "https://getcomposer.org/schema.json": "composer.yaml",
+    "https://example.com/api-schema.json": ["api/*.yml", "api/*.yaml"]
+  }
 }
 ```
 
@@ -128,21 +115,25 @@ Local schema paths can be absolute paths, file URIs, or relative paths. In a sin
 
 On macOS or Linux:
 
-```yaml
-yaml.schemas: {
-  "/home/user/custom_schema.json": "someFilePattern.yaml",
-  "/home/user/custom_schema.yaml": "anotherPattern.yaml",
-  "../relative/path/schema.json": ["filePattern1.yaml", "filePattern2.yaml"]
+```json
+{
+  "yaml.schemas": {
+    "/home/user/custom_schema.json": "someFilePattern.yaml",
+    "/home/user/custom_schema.yaml": "anotherPattern.yaml",
+    "../relative/path/schema.json": ["filePattern1.yaml", "filePattern2.yaml"]
+  }
 }
 ```
 
 On Windows:
 
-```yaml
-yaml.schemas: {
-  "C:\\Users\\user\\Documents\\custom_schema.json": "someFilePattern.yaml",
-  "file:///C:/Users/user/Documents/custom_schema.yaml": "anotherPattern.yaml",
-  "../relative/path/schema.json": ["filePattern1.yaml", "filePattern2.yaml"]
+```json
+{
+  "yaml.schemas": {
+    "C:\\Users\\user\\Documents\\custom_schema.json": "someFilePattern.yaml",
+    "file:///C:/Users/user/Documents/custom_schema.yaml": "anotherPattern.yaml",
+    "../relative/path/schema.json": ["filePattern1.yaml", "filePattern2.yaml"]
+  }
 }
 ```
 
@@ -150,13 +141,12 @@ yaml.schemas: {
 
 In a multi-root workspace, prefix local schema paths with the workspace folder that contains the schema.
 
-Suppose the workspace contains two workspace folders, `My_first_project` and `My_second_project`:
+Suppose you have a multi-root workspace that contains two workspace folders, `My_first_project` and `My_second_project`:
 
-```text
+```shell
 My_first_project/
 ├── test.yaml
 └── my_schema.json
-
 My_second_project/
 ├── test2.yaml
 └── my_schema2.json
@@ -164,32 +154,37 @@ My_second_project/
 
 Use the workspace folder name at the start of each schema path key:
 
-```yaml
-yaml.schemas: {
-  "My_first_project/my_schema.json": "test.yaml",
-  "My_second_project/my_schema2.json": "test2.yaml"
+```json
+{
+  "yaml.schemas": {
+    "My_first_project/my_schema.json": "test.yaml",
+    "My_second_project/my_schema2.json": "test2.yaml"
+  }
 }
 ```
 
-#### Kubernetes Schema Keyword
+#### Using the Kubernetes Schema Keyword
 
-Use the reserved `kubernetes` keyword to validate Kubernetes YAML files. The language server resolves this keyword to its built-in Kubernetes schema URL, so a separate Kubernetes schema URL is not required.
+Use the reserved `kubernetes` keyword to validate Kubernetes YAML files. The language server automatically resolves it to the appropriate versioned Kubernetes schema URL based on your `yaml.kubernetesVersion` setting (or the default version).
 
-```yaml
-yaml.schemas: {
-  "kubernetes": "k8s/*.yaml"
+```json
+{
+  "yaml.schemas": {
+    "kubernetes": "k8s/*.yaml"
+  }
 }
 ```
 
-When the Kubernetes schema is active, `yaml.kubernetesCRDStore.enable` controls whether the server also uses schemas from the configured CRD catalog for Kubernetes custom resources.
+**Specifying Kubernetes Version**
 
-#### Nested Schema References
+Use `yaml.kubernetesVersion` to choose the Kubernetes version used for the generated schema URL.
 
-If a YAML file represents part of a larger schema, you can reference a nested schema with a URL fragment:
-
-```yaml
-yaml.schemas: {
-  "https://json.schemastore.org/circleciconfig#/definitions/jobs/additionalProperties": "src/jobs/*.yaml"
+```json
+{
+  "yaml.kubernetesVersion": "1.36.1",
+  "yaml.schemas": {
+    "kubernetes": "k8s/*.yaml"
+  }
 }
 ```
 
