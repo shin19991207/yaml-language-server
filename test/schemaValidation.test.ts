@@ -2,7 +2,8 @@
  *  Copyright (c) Red Hat. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-import { SCHEMA_ID, TestCustomSchemaProvider, setupLanguageService, setupSchemaIDTextDocument } from './utils/testHelper';
+import type { TestCustomSchemaProvider } from './utils/testHelper';
+import { SCHEMA_ID, setupLanguageService, setupSchemaIDTextDocument } from './utils/testHelper';
 import { createDiagnosticWithData, createExpectedError } from './utils/verifyError';
 import { ServiceSetup } from './utils/serviceSetup';
 import {
@@ -17,15 +18,17 @@ import {
 } from './utils/errorMessages';
 import assert from 'assert';
 import * as path from 'path';
-import { Diagnostic, DiagnosticSeverity, Position } from 'vscode-languageserver-types';
+import type { Diagnostic } from 'vscode-languageserver-types';
+import { DiagnosticSeverity, Position } from 'vscode-languageserver-types';
 import { expect } from 'chai';
-import { SettingsState, TextDocumentTestManager } from '../src/yamlSettings';
-import { ValidationHandler } from '../src/languageserver/handlers/validationHandlers';
-import { LanguageService } from '../src/languageservice/yamlLanguageService';
-import { IProblem } from '../src/languageservice/parser/schemaValidation/baseValidator';
-import { JSONSchema } from '../src/languageservice/jsonSchema';
-import { TestTelemetry } from './utils/testsTypes';
-import { ErrorCode } from 'vscode-json-languageservice';
+import type { SettingsState } from '../src/yamlSettings';
+import { TextDocumentTestManager } from '../src/yamlSettings';
+import type { ValidationHandler } from '../src/languageserver/handlers/validationHandlers';
+import type { LanguageService } from '../src/languageservice/yamlLanguageService';
+import type { IProblem } from '../src/languageservice/parser/schemaValidation/baseValidator';
+import type { JSONSchema } from '../src/languageservice/jsonSchema';
+import type { TestTelemetry } from './utils/testsTypes';
+import { ErrorCode } from '../src/languageservice/jsonLanguageTypes';
 import { DEFAULT_KUBERNETES_SCHEMA_VERSION } from '../src/languageservice/utils/schemaUrls';
 
 const KUBERNETES_SCHEMA_URL = `https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/${DEFAULT_KUBERNETES_SCHEMA_VERSION}-standalone-strict/all.json`;
@@ -81,7 +84,7 @@ describe('Validation Tests', () => {
   });
 
   describe('Boolean tests', () => {
-    it('Boolean true test', (done) => {
+    it('Boolean true test', async () => {
       schemaProvider.addSchema(SCHEMA_ID, {
         type: 'object',
         properties: {
@@ -91,15 +94,11 @@ describe('Validation Tests', () => {
         },
       });
       const content = 'analytics: true';
-      const validator = parseSetup(content);
-      validator
-        .then(function (result) {
-          assert.equal(result.length, 0);
-        })
-        .then(done, done);
+      const result = await parseSetup(content);
+      assert.equal(result.length, 0);
     });
 
-    it('Basic false test', (done) => {
+    it('Basic false test', async () => {
       schemaProvider.addSchema(SCHEMA_ID, {
         type: 'object',
         properties: {
@@ -109,15 +108,11 @@ describe('Validation Tests', () => {
         },
       });
       const content = 'analytics: false';
-      const validator = parseSetup(content);
-      validator
-        .then(function (result) {
-          assert.equal(result.length, 0);
-        })
-        .then(done, done);
+      const result = await parseSetup(content);
+      assert.equal(result.length, 0);
     });
 
-    it('Test that boolean value without quotations is valid', (done) => {
+    it('Test that boolean value without quotations is valid', async () => {
       schemaProvider.addSchema(SCHEMA_ID, {
         type: 'object',
         properties: {
@@ -127,15 +122,11 @@ describe('Validation Tests', () => {
         },
       });
       const content = '%YAML 1.1\n---\nanalytics: no';
-      const validator = parseSetup(content);
-      validator
-        .then(function (result) {
-          assert.equal(result.length, 0);
-        })
-        .then(done, done);
+      const result = await parseSetup(content);
+      assert.equal(result.length, 0);
     });
 
-    it('Test that boolean value in quotations is interpreted as string not boolean', (done) => {
+    it('Test that boolean value in quotations is interpreted as string not boolean', async () => {
       schemaProvider.addSchema(SCHEMA_ID, {
         type: 'object',
         properties: {
@@ -145,28 +136,24 @@ describe('Validation Tests', () => {
         },
       });
       const content = 'analytics: "no"';
-      const validator = parseSetup(content);
-      validator
-        .then(function (result) {
-          assert.strictEqual(result.length, 1);
-          assert.deepStrictEqual(
-            result[0],
-            createDiagnosticWithData(
-              BooleanTypeError,
-              0,
-              11,
-              0,
-              15,
-              DiagnosticSeverity.Error,
-              `yaml-schema: file:///${SCHEMA_ID}`,
-              `file:///${SCHEMA_ID}`
-            )
-          );
-        })
-        .then(done, done);
+      const result = await parseSetup(content);
+      assert.strictEqual(result.length, 1);
+      assert.deepStrictEqual(
+        result[0],
+        createDiagnosticWithData(
+          BooleanTypeError,
+          0,
+          11,
+          0,
+          15,
+          DiagnosticSeverity.Error,
+          `yaml-schema: file:///${SCHEMA_ID}`,
+          `file:///${SCHEMA_ID}`
+        )
+      );
     });
 
-    it('Error on incorrect value type (boolean)', (done) => {
+    it('Error on incorrect value type (boolean)', async () => {
       schemaProvider.addSchema(SCHEMA_ID, {
         type: 'object',
         properties: {
@@ -176,28 +163,24 @@ describe('Validation Tests', () => {
         },
       });
       const content = 'cwd: False';
-      const validator = parseSetup(content);
-      validator
-        .then(function (result) {
-          assert.equal(result.length, 1);
-          assert.deepEqual(
-            result[0],
-            createDiagnosticWithData(
-              StringTypeError,
-              0,
-              5,
-              0,
-              10,
-              DiagnosticSeverity.Error,
-              `yaml-schema: file:///${SCHEMA_ID}`,
-              `file:///${SCHEMA_ID}`
-            )
-          );
-        })
-        .then(done, done);
+      const result = await parseSetup(content);
+      assert.equal(result.length, 1);
+      assert.deepEqual(
+        result[0],
+        createDiagnosticWithData(
+          StringTypeError,
+          0,
+          5,
+          0,
+          10,
+          DiagnosticSeverity.Error,
+          `yaml-schema: file:///${SCHEMA_ID}`,
+          `file:///${SCHEMA_ID}`
+        )
+      );
     });
 
-    it('Test that boolean value can be used in enum', (done) => {
+    it('Test that boolean value can be used in enum', async () => {
       schemaProvider.addSchema(SCHEMA_ID, {
         type: 'object',
         properties: {
@@ -207,15 +190,11 @@ describe('Validation Tests', () => {
         },
       });
       const content = 'analytics: true';
-      const validator = parseSetup(content);
-      validator
-        .then(function (result) {
-          assert.deepStrictEqual(result, []);
-        })
-        .then(done, done);
+      const result = await parseSetup(content);
+      assert.deepStrictEqual(result, []);
     });
 
-    it('Test that boolean value can be used in const', (done) => {
+    it('Test that boolean value can be used in const', async () => {
       schemaProvider.addSchema(SCHEMA_ID, {
         type: 'object',
         properties: {
@@ -225,12 +204,8 @@ describe('Validation Tests', () => {
         },
       });
       const content = 'analytics: true';
-      const validator = parseSetup(content);
-      validator
-        .then(function (result) {
-          assert.deepStrictEqual(result, []);
-        })
-        .then(done, done);
+      const result = await parseSetup(content);
+      assert.deepStrictEqual(result, []);
     });
 
     it('Test that YAML 1.1 boolean "True" can be used in enum', async () => {
@@ -301,7 +276,7 @@ describe('Validation Tests', () => {
   });
 
   describe('String tests', () => {
-    it('Test that boolean inside of quotations is of type string', (done) => {
+    it('Test that boolean inside of quotations is of type string', async () => {
       schemaProvider.addSchema(SCHEMA_ID, {
         type: 'object',
         properties: {
@@ -311,15 +286,11 @@ describe('Validation Tests', () => {
         },
       });
       const content = 'analytics: "no"';
-      const validator = parseSetup(content);
-      validator
-        .then(function (result) {
-          assert.equal(result.length, 0);
-        })
-        .then(done, done);
+      const result = await parseSetup(content);
+      assert.equal(result.length, 0);
     });
 
-    it('Type string validates under children', (done) => {
+    it('Type string validates under children', async () => {
       schemaProvider.addSchema(SCHEMA_ID, {
         type: 'object',
         properties: {
@@ -334,15 +305,11 @@ describe('Validation Tests', () => {
         },
       });
       const content = 'registry:\n  register: file://test_url';
-      const validator = parseSetup(content);
-      validator
-        .then(function (result) {
-          assert.equal(result.length, 0);
-        })
-        .then(done, done);
+      const result = await parseSetup(content);
+      assert.equal(result.length, 0);
     });
 
-    it('Type String does not error on valid node', (done) => {
+    it('Type String does not error on valid node', async () => {
       schemaProvider.addSchema(SCHEMA_ID, {
         type: 'object',
         properties: {
@@ -352,15 +319,11 @@ describe('Validation Tests', () => {
         },
       });
       const content = 'cwd: this';
-      const validator = parseSetup(content);
-      validator
-        .then(function (result) {
-          assert.equal(result.length, 0);
-        })
-        .then(done, done);
+      const result = await parseSetup(content);
+      assert.equal(result.length, 0);
     });
 
-    it('Error on incorrect value type (string)', (done) => {
+    it('Error on incorrect value type (string)', async () => {
       schemaProvider.addSchema(SCHEMA_ID, {
         type: 'object',
         properties: {
@@ -370,28 +333,24 @@ describe('Validation Tests', () => {
         },
       });
       const content = 'analytics: hello';
-      const validator = parseSetup(content);
-      validator
-        .then(function (result) {
-          assert.equal(result.length, 1);
-          assert.deepEqual(
-            result[0],
-            createDiagnosticWithData(
-              BooleanTypeError,
-              0,
-              11,
-              0,
-              16,
-              DiagnosticSeverity.Error,
-              `yaml-schema: file:///${SCHEMA_ID}`,
-              `file:///${SCHEMA_ID}`
-            )
-          );
-        })
-        .then(done, done);
+      const result = await parseSetup(content);
+      assert.equal(result.length, 1);
+      assert.deepEqual(
+        result[0],
+        createDiagnosticWithData(
+          BooleanTypeError,
+          0,
+          11,
+          0,
+          16,
+          DiagnosticSeverity.Error,
+          `yaml-schema: file:///${SCHEMA_ID}`,
+          `file:///${SCHEMA_ID}`
+        )
+      );
     });
 
-    it('Test that boolean is invalid when no strings present and schema wants string', (done) => {
+    it('Test that boolean is invalid when no strings present and schema wants string', async () => {
       schemaProvider.addSchema(SCHEMA_ID, {
         type: 'object',
         properties: {
@@ -401,30 +360,26 @@ describe('Validation Tests', () => {
         },
       });
       const content = '%YAML 1.1\n---\ncwd: no';
-      const validator = parseSetup(content);
-      validator
-        .then(function (result) {
-          assert.equal(result.length, 1);
-          assert.deepEqual(
-            result[0],
-            createDiagnosticWithData(
-              StringTypeError,
-              2,
-              5,
-              2,
-              7,
-              DiagnosticSeverity.Error,
-              `yaml-schema: file:///${SCHEMA_ID}`,
-              `file:///${SCHEMA_ID}`
-            )
-          );
-        })
-        .then(done, done);
+      const result = await parseSetup(content);
+      assert.equal(result.length, 1);
+      assert.deepEqual(
+        result[0],
+        createDiagnosticWithData(
+          StringTypeError,
+          2,
+          5,
+          2,
+          7,
+          DiagnosticSeverity.Error,
+          `yaml-schema: file:///${SCHEMA_ID}`,
+          `file:///${SCHEMA_ID}`
+        )
+      );
     });
   });
 
   describe('Pattern tests', () => {
-    it('Test a valid Unicode pattern', (done) => {
+    it('Test a valid Unicode pattern', async () => {
       schemaProvider.addSchema(SCHEMA_ID, {
         type: 'object',
         properties: {
@@ -434,13 +389,10 @@ describe('Validation Tests', () => {
           },
         },
       });
-      parseSetup('prop: "tesT"')
-        .then(function (result) {
-          assert.equal(result.length, 0);
-        })
-        .then(done, done);
+      const result = await parseSetup('prop: "tesT"');
+      assert.equal(result.length, 0);
     });
-    it('Test an invalid Unicode pattern', (done) => {
+    it('Test an invalid Unicode pattern', async () => {
       schemaProvider.addSchema(SCHEMA_ID, {
         type: 'object',
         properties: {
@@ -450,28 +402,25 @@ describe('Validation Tests', () => {
           },
         },
       });
-      parseSetup('prop: "tes "')
-        .then(function (result) {
-          assert.equal(result.length, 1);
-          assert.ok(result[0].message.startsWith('String does not match the pattern'));
-          assert.deepEqual(
-            result[0],
-            createDiagnosticWithData(
-              result[0].message,
-              0,
-              6,
-              0,
-              12,
-              DiagnosticSeverity.Error,
-              `yaml-schema: file:///${SCHEMA_ID}`,
-              `file:///${SCHEMA_ID}`
-            )
-          );
-        })
-        .then(done, done);
+      const result = await parseSetup('prop: "tes "');
+      assert.equal(result.length, 1);
+      assert.ok(result[0].message.startsWith('String does not match the pattern'));
+      assert.deepEqual(
+        result[0],
+        createDiagnosticWithData(
+          result[0].message,
+          0,
+          6,
+          0,
+          12,
+          DiagnosticSeverity.Error,
+          `yaml-schema: file:///${SCHEMA_ID}`,
+          `file:///${SCHEMA_ID}`
+        )
+      );
     });
 
-    it('Test a valid Unicode patternProperty', (done) => {
+    it('Test a valid Unicode patternProperty', async () => {
       schemaProvider.addSchema(SCHEMA_ID, {
         type: 'object',
         patternProperties: {
@@ -479,13 +428,10 @@ describe('Validation Tests', () => {
         },
         additionalProperties: false,
       });
-      parseSetup('tesT: true')
-        .then(function (result) {
-          assert.equal(result.length, 0);
-        })
-        .then(done, done);
+      const result = await parseSetup('tesT: true');
+      assert.equal(result.length, 0);
     });
-    it('Test an invalid Unicode patternProperty', (done) => {
+    it('Test an invalid Unicode patternProperty', async () => {
       schemaProvider.addSchema(SCHEMA_ID, {
         type: 'object',
         patternProperties: {
@@ -493,27 +439,24 @@ describe('Validation Tests', () => {
         },
         additionalProperties: false,
       });
-      parseSetup('tes9: true')
-        .then(function (result) {
-          assert.equal(result.length, 1);
-          assert.deepEqual(
-            result[0],
-            createDiagnosticWithData(
-              'Property tes9 is not allowed.',
-              0,
-              0,
-              0,
-              4,
-              DiagnosticSeverity.Error,
-              `yaml-schema: file:///${SCHEMA_ID}`,
-              `file:///${SCHEMA_ID}`,
-              ErrorCode.PropertyExpected
-            )
-          );
-        })
-        .then(done, done);
+      const result = await parseSetup('tes9: true');
+      assert.equal(result.length, 1);
+      assert.deepEqual(
+        result[0],
+        createDiagnosticWithData(
+          'Property tes9 is not allowed.',
+          0,
+          0,
+          0,
+          4,
+          DiagnosticSeverity.Error,
+          `yaml-schema: file:///${SCHEMA_ID}`,
+          `file:///${SCHEMA_ID}`,
+          ErrorCode.PropertyExpected
+        )
+      );
     });
-    it('Test inline pattern modifiers', (done) => {
+    it('Test inline pattern modifiers', async () => {
       schemaProvider.addSchema(SCHEMA_ID, {
         type: 'object',
         properties: {
@@ -575,13 +518,10 @@ describe('Validation Tests', () => {
         '  end',
         '  more text',
       ].join('\n');
-      parseSetup(content)
-        .then(function (result) {
-          assert.equal(result.length, 0);
-        })
-        .then(done, done);
+      const result = await parseSetup(content);
+      assert.equal(result.length, 0);
     });
-    it('Test an unsupported pattern', (done) => {
+    it('Test an unsupported pattern', async () => {
       schemaProvider.addSchema(SCHEMA_ID, {
         type: 'object',
         properties: {
@@ -591,29 +531,26 @@ describe('Validation Tests', () => {
           },
         },
       });
-      parseSetup('unsupportedPattern: text content')
-        .then(function (result) {
-          assert.equal(result.length, 1);
-          assert.deepEqual(
-            result[0],
-            createDiagnosticWithData(
-              'Invalid pattern: "(?x)text .*"',
-              0,
-              20,
-              0,
-              32,
-              DiagnosticSeverity.Error,
-              `yaml-schema: file:///${SCHEMA_ID}`,
-              `file:///${SCHEMA_ID}`
-            )
-          );
-        })
-        .then(done, done);
+      const result = await parseSetup('unsupportedPattern: text content');
+      assert.equal(result.length, 1);
+      assert.deepEqual(
+        result[0],
+        createDiagnosticWithData(
+          'Invalid pattern: "(?x)text .*"',
+          0,
+          20,
+          0,
+          32,
+          DiagnosticSeverity.Error,
+          `yaml-schema: file:///${SCHEMA_ID}`,
+          `file:///${SCHEMA_ID}`
+        )
+      );
     });
   });
 
   describe('Number tests', () => {
-    it('Type Number does not error on valid node', (done) => {
+    it('Type Number does not error on valid node', async () => {
       schemaProvider.addSchema(SCHEMA_ID, {
         type: 'object',
         properties: {
@@ -623,15 +560,11 @@ describe('Validation Tests', () => {
         },
       });
       const content = 'timeout: 60000';
-      const validator = parseSetup(content);
-      validator
-        .then(function (result) {
-          assert.equal(result.length, 0);
-        })
-        .then(done, done);
+      const result = await parseSetup(content);
+      assert.equal(result.length, 0);
     });
 
-    it('Error on incorrect value type (number)', (done) => {
+    it('Error on incorrect value type (number)', async () => {
       schemaProvider.addSchema(SCHEMA_ID, {
         type: 'object',
         properties: {
@@ -641,30 +574,26 @@ describe('Validation Tests', () => {
         },
       });
       const content = 'cwd: 100000';
-      const validator = parseSetup(content);
-      validator
-        .then(function (result) {
-          assert.equal(result.length, 1);
-          assert.deepEqual(
-            result[0],
-            createDiagnosticWithData(
-              StringTypeError,
-              0,
-              5,
-              0,
-              11,
-              DiagnosticSeverity.Error,
-              `yaml-schema: file:///${SCHEMA_ID}`,
-              `file:///${SCHEMA_ID}`
-            )
-          );
-        })
-        .then(done, done);
+      const result = await parseSetup(content);
+      assert.equal(result.length, 1);
+      assert.deepEqual(
+        result[0],
+        createDiagnosticWithData(
+          StringTypeError,
+          0,
+          5,
+          0,
+          11,
+          DiagnosticSeverity.Error,
+          `yaml-schema: file:///${SCHEMA_ID}`,
+          `file:///${SCHEMA_ID}`
+        )
+      );
     });
   });
 
   describe('Null tests', () => {
-    it('Basic test on nodes with null', (done) => {
+    it('Basic test on nodes with null', async () => {
       schemaProvider.addSchema(SCHEMA_ID, {
         type: 'object',
         additionalProperties: false,
@@ -702,17 +631,13 @@ describe('Validation Tests', () => {
         },
       });
       const content = 'columns:\n  ColumnA: { int, id }\n  ColumnB: { long, unique }\n  ColumnC: { long, unique }';
-      const validator = parseSetup(content);
-      validator
-        .then(function (result) {
-          assert.equal(result.length, 0);
-        })
-        .then(done, done);
+      const result = await parseSetup(content);
+      assert.equal(result.length, 0);
     });
   });
 
   describe('Object tests', () => {
-    it('Basic test on nodes with children', (done) => {
+    it('Basic test on nodes with children', async () => {
       schemaProvider.addSchema(SCHEMA_ID, {
         type: 'object',
         properties: {
@@ -730,15 +655,11 @@ describe('Validation Tests', () => {
         },
       });
       const content = 'scripts:\n  preinstall: test1\n  postinstall: test2';
-      const validator = parseSetup(content);
-      validator
-        .then(function (result) {
-          assert.equal(result.length, 0);
-        })
-        .then(done, done);
+      const result = await parseSetup(content);
+      assert.equal(result.length, 0);
     });
 
-    it('Test with multiple nodes with children', (done) => {
+    it('Test with multiple nodes with children', async () => {
       schemaProvider.addSchema(SCHEMA_ID, {
         type: 'object',
         properties: {
@@ -762,15 +683,11 @@ describe('Validation Tests', () => {
         },
       });
       const content = 'analytics: true\ncwd: this\nscripts:\n  preinstall: test1\n  postinstall: test2';
-      const validator = parseSetup(content);
-      validator
-        .then(function (result) {
-          assert.equal(result.length, 0);
-        })
-        .then(done, done);
+      const result = await parseSetup(content);
+      assert.equal(result.length, 0);
     });
 
-    it('Type Object does not error on valid node', (done) => {
+    it('Type Object does not error on valid node', async () => {
       schemaProvider.addSchema(SCHEMA_ID, {
         type: 'object',
         properties: {
@@ -785,15 +702,11 @@ describe('Validation Tests', () => {
         },
       });
       const content = 'registry:\n  search: file://test_url';
-      const validator = parseSetup(content);
-      validator
-        .then(function (result) {
-          assert.equal(result.length, 0);
-        })
-        .then(done, done);
+      const result = await parseSetup(content);
+      assert.equal(result.length, 0);
     });
 
-    it('Error on incorrect value type (object)', (done) => {
+    it('Error on incorrect value type (object)', async () => {
       schemaProvider.addSchema(SCHEMA_ID, {
         type: 'object',
         title: 'Object',
@@ -809,30 +722,26 @@ describe('Validation Tests', () => {
         },
       });
       const content = 'scripts: test';
-      const validator = parseSetup(content);
-      validator
-        .then(function (result) {
-          assert.equal(result.length, 1);
-          assert.deepEqual(
-            result[0],
-            createDiagnosticWithData(
-              'Incorrect type. Expected "object(Object)".',
-              0,
-              9,
-              0,
-              13,
-              DiagnosticSeverity.Error,
-              `yaml-schema: Object`,
-              `file:///${SCHEMA_ID}`
-            )
-          );
-        })
-        .then(done, done);
+      const result = await parseSetup(content);
+      assert.equal(result.length, 1);
+      assert.deepEqual(
+        result[0],
+        createDiagnosticWithData(
+          'Incorrect type. Expected "object(Object)".',
+          0,
+          9,
+          0,
+          13,
+          DiagnosticSeverity.Error,
+          `yaml-schema: Object`,
+          `file:///${SCHEMA_ID}`
+        )
+      );
     });
   });
 
   describe('Array tests', () => {
-    it('Type Array does not error on valid node', (done) => {
+    it('Type Array does not error on valid node', async () => {
       schemaProvider.addSchema(SCHEMA_ID, {
         type: 'object',
         properties: {
@@ -845,15 +754,11 @@ describe('Validation Tests', () => {
         },
       });
       const content = 'resolvers:\n  - test\n  - test\n  - test';
-      const validator = parseSetup(content);
-      validator
-        .then(function (result) {
-          assert.equal(result.length, 0);
-        })
-        .then(done, done);
+      const result = await parseSetup(content);
+      assert.equal(result.length, 0);
     });
 
-    it('Error on incorrect value type (array)', (done) => {
+    it('Error on incorrect value type (array)', async () => {
       schemaProvider.addSchema(SCHEMA_ID, {
         type: 'object',
         properties: {
@@ -863,30 +768,26 @@ describe('Validation Tests', () => {
         },
       });
       const content = 'resolvers: test';
-      const validator = parseSetup(content);
-      validator
-        .then(function (result) {
-          assert.equal(result.length, 1);
-          assert.deepEqual(
-            result[0],
-            createDiagnosticWithData(
-              ArrayTypeError,
-              0,
-              11,
-              0,
-              15,
-              DiagnosticSeverity.Error,
-              `yaml-schema: file:///${SCHEMA_ID}`,
-              `file:///${SCHEMA_ID}`
-            )
-          );
-        })
-        .then(done, done);
+      const result = await parseSetup(content);
+      assert.equal(result.length, 1);
+      assert.deepEqual(
+        result[0],
+        createDiagnosticWithData(
+          ArrayTypeError,
+          0,
+          11,
+          0,
+          15,
+          DiagnosticSeverity.Error,
+          `yaml-schema: file:///${SCHEMA_ID}`,
+          `file:///${SCHEMA_ID}`
+        )
+      );
     });
   });
 
   describe('Anchor tests', () => {
-    it('Anchor should not error', (done) => {
+    it('Anchor should not error', async () => {
       schemaProvider.addSchema(SCHEMA_ID, {
         type: 'object',
         properties: {
@@ -901,15 +802,11 @@ describe('Validation Tests', () => {
         },
       });
       const content = 'default: &DEFAULT\n  name: Anchor\nanchor_test:\n  <<: *DEFAULT';
-      const validator = parseSetup(content);
-      validator
-        .then(function (result) {
-          assert.equal(result.length, 0);
-        })
-        .then(done, done);
+      const result = await parseSetup(content);
+      assert.equal(result.length, 0);
     });
 
-    it('Anchor with multiple references should not error', (done) => {
+    it('Anchor with multiple references should not error', async () => {
       schemaProvider.addSchema(SCHEMA_ID, {
         type: 'object',
         properties: {
@@ -924,15 +821,11 @@ describe('Validation Tests', () => {
         },
       });
       const content = 'default: &DEFAULT\n  name: Anchor\nanchor_test:\n  <<: *DEFAULT\nanchor_test2:\n  <<: *DEFAULT';
-      const validator = parseSetup(content);
-      validator
-        .then(function (result) {
-          assert.equal(result.length, 0);
-        })
-        .then(done, done);
+      const result = await parseSetup(content);
+      assert.equal(result.length, 0);
     });
 
-    it('Multiple Anchor in array of references should not error', (done) => {
+    it('Multiple Anchor in array of references should not error', async () => {
       schemaProvider.addSchema(SCHEMA_ID, {
         type: 'object',
         properties: {
@@ -948,12 +841,8 @@ describe('Validation Tests', () => {
       });
       const content =
         'default: &DEFAULT\n  name: Anchor\ncustomname: &CUSTOMNAME\n  custom_name: Anchor\nanchor_test:\n  <<: [*DEFAULT, *CUSTOMNAME]';
-      const validator = parseSetup(content);
-      validator
-        .then(function (result) {
-          assert.equal(result.length, 0);
-        })
-        .then(done, done);
+      const result = await parseSetup(content);
+      assert.equal(result.length, 0);
     });
 
     it('Multiple Anchors being referenced in same level at same time for yaml 1.1', async () => {
@@ -1031,7 +920,7 @@ describe('Validation Tests', () => {
       assert.strictEqual(validator.length, 0);
     });
 
-    it('Anchor reference with a validation error in a sub-object emits the error in the right location', (done) => {
+    it('Anchor reference with a validation error in a sub-object emits the error in the right location', async () => {
       schemaProvider.addSchema(SCHEMA_ID, {
         type: 'object',
         properties: {
@@ -1056,29 +945,25 @@ describe('Validation Tests', () => {
         dest:
           <<: *src
       `;
-      const validator = parseSetup(content);
-      validator
-        .then(function (result) {
-          assert.equal(result.length, 1);
-          // The key thing we're checking is *where* the validation error gets reported.
-          // "outer" isn't required to contain "otherkey" inside "src", but it is inside
-          // "dest". Since "outer" doesn't appear inside "dest" because of the alias, we
-          // need to move the error into "src".
-          assert.deepEqual(
-            result[0],
-            createDiagnosticWithData(
-              MissingRequiredPropWarning.replace('{0}', 'otherkey'),
-              2,
-              10,
-              2,
-              15,
-              DiagnosticSeverity.Error,
-              `yaml-schema: file:///${SCHEMA_ID}`,
-              `file:///${SCHEMA_ID}`
-            )
-          );
-        })
-        .then(done, done);
+      const result = await parseSetup(content);
+      assert.equal(result.length, 1);
+      // The key thing we're checking is *where* the validation error gets reported.
+      // "outer" isn't required to contain "otherkey" inside "src", but it is inside
+      // "dest". Since "outer" doesn't appear inside "dest" because of the alias, we
+      // need to move the error into "src".
+      assert.deepEqual(
+        result[0],
+        createDiagnosticWithData(
+          MissingRequiredPropWarning.replace('{0}', 'otherkey'),
+          2,
+          10,
+          2,
+          15,
+          DiagnosticSeverity.Error,
+          `yaml-schema: file:///${SCHEMA_ID}`,
+          `file:///${SCHEMA_ID}`
+        )
+      );
     });
 
     it('Array Anchor merge', async () => {
@@ -1146,7 +1031,7 @@ obj:
       );
     });
 
-    it('Custom Tags with type', (done) => {
+    it('Custom Tags with type', async () => {
       configureCustomTags(['!Ref sequence']);
       schemaProvider.addSchema(SCHEMA_ID, {
         type: 'object',
@@ -1160,15 +1045,11 @@ obj:
         },
       });
       const content = 'resolvers: !Ref\n  - test';
-      const validator = parseSetup(content);
-      validator
-        .then(function (result) {
-          assert.equal(result.length, 0);
-        })
-        .then(done, done);
+      const result = await parseSetup(content);
+      assert.equal(result.length, 0);
     });
 
-    it('Include with value should not error', (done) => {
+    it('Include with value should not error', async () => {
       schemaProvider.addSchema(SCHEMA_ID, {
         type: 'object',
         properties: {
@@ -1178,23 +1059,15 @@ obj:
         },
       });
       const content = 'customize: !include customize.yaml';
-      const validator = parseSetup(content);
-      validator
-        .then(function (result) {
-          assert.equal(result.length, 0);
-        })
-        .then(done, done);
+      const result = await parseSetup(content);
+      assert.equal(result.length, 0);
     });
 
-    it('Include without value should error', (done) => {
+    it('Include without value should error', async () => {
       const content = 'customize: !include';
-      const validator = parseSetup(content);
-      validator
-        .then(function (result) {
-          assert.equal(result.length, 1);
-          assert.deepEqual(result[0], createExpectedError(IncludeWithoutValueError, 0, 11, 0, 19));
-        })
-        .then(done, done);
+      const result = await parseSetup(content);
+      assert.equal(result.length, 1);
+      assert.deepEqual(result[0], createExpectedError(IncludeWithoutValueError, 0, 11, 0, 19));
     });
 
     it('Custom Tags with return type validate against evaluated schema type', async () => {
@@ -1230,7 +1103,7 @@ obj:
   });
 
   describe('Multiple type tests', function () {
-    it('Do not error when there are multiple types in schema and theyre valid', (done) => {
+    it('Do not error when there are multiple types in schema and theyre valid', async () => {
       schemaProvider.addSchema(SCHEMA_ID, {
         type: 'object',
         properties: {
@@ -1240,17 +1113,13 @@ obj:
         },
       });
       const content = 'license: MIT';
-      const validator = parseSetup(content);
-      validator
-        .then(function (result) {
-          assert.equal(result.length, 0);
-        })
-        .then(done, done);
+      const result = await parseSetup(content);
+      assert.equal(result.length, 0);
     });
   });
 
   describe('Invalid YAML errors', function () {
-    it('Error when theres a finished untyped item', (done) => {
+    it('Error when theres a finished untyped item', async () => {
       schemaProvider.addSchema(SCHEMA_ID, {
         type: 'object',
         properties: {
@@ -1263,16 +1132,12 @@ obj:
         },
       });
       const content = 'cwd: hello\nan';
-      const validator = parseSetup(content);
-      validator
-        .then(function (result) {
-          assert.equal(result.length, 1);
-          assert.deepEqual(result[0], createExpectedError(BlockMappingEntryError, 1, 0, 1, 2));
-        })
-        .then(done, done);
+      const result = await parseSetup(content);
+      assert.equal(result.length, 1);
+      assert.deepEqual(result[0], createExpectedError(BlockMappingEntryError, 1, 0, 1, 2));
     });
 
-    it('Error when theres no value for a node', (done) => {
+    it('Error when theres no value for a node', async () => {
       schemaProvider.addSchema(SCHEMA_ID, {
         type: 'object',
         properties: {
@@ -1282,43 +1147,35 @@ obj:
         },
       });
       const content = 'cwd:';
-      const validator = parseSetup(content);
-      validator
-        .then(function (result) {
-          assert.equal(result.length, 1);
-          assert.deepEqual(
-            result[0],
-            createDiagnosticWithData(
-              StringTypeError,
-              0,
-              4,
-              0,
-              4,
-              DiagnosticSeverity.Error,
-              `yaml-schema: file:///${SCHEMA_ID}`,
-              `file:///${SCHEMA_ID}`
-            )
-          );
-        })
-        .then(done, done);
+      const result = await parseSetup(content);
+      assert.equal(result.length, 1);
+      assert.deepEqual(
+        result[0],
+        createDiagnosticWithData(
+          StringTypeError,
+          0,
+          4,
+          0,
+          4,
+          DiagnosticSeverity.Error,
+          `yaml-schema: file:///${SCHEMA_ID}`,
+          `file:///${SCHEMA_ID}`
+        )
+      );
     });
   });
 
   describe('Test with no schemas', () => {
-    it('Duplicate properties are reported', (done) => {
+    it('Duplicate properties are reported', async () => {
       const content = 'kind: a\ncwd: b\nkind: c';
-      const validator = parseSetup(content);
-      validator
-        .then(function (result) {
-          assert.equal(result.length, 1);
-          assert.deepEqual(result[0], createExpectedError(DuplicateKeyError, 2, 0, 2, 7));
-        })
-        .then(done, done);
+      const result = await parseSetup(content);
+      assert.equal(result.length, 1);
+      assert.deepEqual(result[0], createExpectedError(DuplicateKeyError, 2, 0, 2, 7));
     });
   });
 
   describe('Test anchors', function () {
-    it('Test that anchors with a schema do not report Property << is not allowed', (done) => {
+    it('Test that anchors with a schema do not report Property << is not allowed', async () => {
       const schema = {
         type: 'object',
         properties: {
@@ -1339,12 +1196,8 @@ obj:
       };
       schemaProvider.addSchema(SCHEMA_ID, schema);
       const content = 'test: &test\n  prop1: hello\nsample:\n  <<: *test\n  prop2: another_test';
-      const validator = parseSetup(content);
-      validator
-        .then(function (result) {
-          assert.equal(result.length, 0);
-        })
-        .then(done, done);
+      const result = await parseSetup(content);
+      assert.equal(result.length, 0);
     });
   });
 
@@ -1353,7 +1206,7 @@ obj:
       languageSettingsSetup.languageSettings.schemas.pop();
       languageService.configure(languageSettingsSetup.languageSettings);
     });
-    it('Test that properties that match multiple enums get validated properly', (done) => {
+    it('Test that properties that match multiple enums get validated properly', async () => {
       languageService.configure(languageSettingsSetup.withKubernetes().languageSettings);
       yamlSettings.specificValidatorPaths = ['*.yml', '*.yaml'];
 
@@ -1389,13 +1242,9 @@ obj:
       };
       schemaProvider.addSchema(SCHEMA_ID, schema);
       const content = 'kind: ';
-      const validator = parseSetup(content);
-      validator
-        .then(function (result) {
-          assert.equal(result.length, 2);
-          assert.equal(result[1].message, `Value is not accepted. Valid values: "ImageStreamImport", "ImageStreamLayers".`);
-        })
-        .then(done, done);
+      const result = await parseSetup(content);
+      assert.equal(result.length, 2);
+      assert.equal(result[1].message, `Value is not accepted. Valid values: "ImageStreamImport", "ImageStreamLayers".`);
     });
 
     it('does not report error for direct Kubernetes standalone-strict/all.json schema associations', async () => {
@@ -1467,7 +1316,7 @@ spec:
       }
     });
 
-    it('Test that it validates against the correct schema based on the GroupVersionKind', (done) => {
+    it('Test that it validates against the correct schema based on the GroupVersionKind', async () => {
       languageService.configure(
         languageSettingsSetup.withKubernetes().withSchemaFileMatch({ uri: KUBERNETES_SCHEMA_URL, fileMatch: ['*.yml', '*.yaml'] })
           .languageSettings
@@ -1492,20 +1341,16 @@ spec:
       target:
         type: Utilization
         averageUtilization: 80`;
-      const validator = parseSetup(content);
-      validator
-        .then(function (result) {
-          assert.equal(result.length, 1);
-          assert.equal(result[0].message, `Property foo is not allowed.`);
-        })
-        .then(done, done);
+      const result = await parseSetup(content);
+      assert.equal(result.length, 1);
+      assert.equal(result[0].message, `Property foo is not allowed.`);
     });
   });
 
   // https://github.com/redhat-developer/yaml-language-server/issues/118
   describe('Null literals', () => {
     ['NULL', 'Null', 'null', '~', ''].forEach((content) => {
-      it(`Test type null is parsed from [${content}]`, (done) => {
+      it(`Test type null is parsed from [${content}]`, async () => {
         const schema = {
           type: 'object',
           properties: {
@@ -1515,16 +1360,12 @@ spec:
           },
         };
         schemaProvider.addSchema(SCHEMA_ID, schema);
-        const validator = parseSetup('nulltest: ' + content);
-        validator
-          .then(function (result) {
-            assert.equal(result.length, 0);
-          })
-          .then(done, done);
+        const result = await parseSetup('nulltest: ' + content);
+        assert.equal(result.length, 0);
       });
     });
 
-    it('Test type null is working correctly in array', (done) => {
+    it('Test type null is working correctly in array', async () => {
       const schema = {
         properties: {
           values: {
@@ -1538,17 +1379,13 @@ spec:
       };
       schemaProvider.addSchema(SCHEMA_ID, schema);
       const content = 'values: [Null, NULL, null, ~,]';
-      const validator = parseSetup(content);
-      validator
-        .then(function (result) {
-          assert.equal(result.length, 0);
-        })
-        .then(done, done);
+      const result = await parseSetup(content);
+      assert.equal(result.length, 0);
     });
   });
 
   describe('Multi Document schema validation tests', () => {
-    it('Document does not error when --- is present with schema', (done) => {
+    it('Document does not error when --- is present with schema', async () => {
       schemaProvider.addSchema(SCHEMA_ID, {
         type: 'object',
         properties: {
@@ -1558,15 +1395,11 @@ spec:
         },
       });
       const content = '---\n# this is a test\ncwd: this';
-      const validator = parseSetup(content);
-      validator
-        .then(function (result) {
-          assert.equal(result.length, 0);
-        })
-        .then(done, done);
+      const result = await parseSetup(content);
+      assert.equal(result.length, 0);
     });
 
-    it('Multi Document does not error when --- is present with schema', (done) => {
+    it('Multi Document does not error when --- is present with schema', async () => {
       schemaProvider.addSchema(SCHEMA_ID, {
         type: 'object',
         properties: {
@@ -1576,12 +1409,8 @@ spec:
         },
       });
       const content = '---\n# this is a test\ncwd: this...\n---\n# second comment\ncwd: hello\n...';
-      const validator = parseSetup(content);
-      validator
-        .then(function (result) {
-          assert.equal(result.length, 0);
-        })
-        .then(done, done);
+      const result = await parseSetup(content);
+      assert.equal(result.length, 0);
     });
   });
 

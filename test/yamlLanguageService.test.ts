@@ -3,8 +3,9 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 import { assert } from 'chai';
-import { Position, TextDocument } from 'vscode-languageserver-textdocument';
-import { getLanguageService, LanguageService, SchemaRequestService, WorkspaceContextService } from '../src';
+import type { Position, TextDocument } from 'vscode-languageserver-textdocument';
+import type { LanguageService, SchemaRequestService, WorkspaceContextService } from '../src';
+import { getLanguageService } from '../src';
 import { workspaceContext } from '../src/languageservice/services/schemaRequestHandler';
 import { caretPosition, setupSchemaIDTextDocument } from './utils/testHelper';
 
@@ -27,7 +28,7 @@ describe('getLanguageService()', () => {
   });
 
   describe('minimal language service hover happy path', () => {
-    const schemaUri = 'my.schema.uri';
+    const schemaUri = 'file:///my.schema.uri';
     const schemaContentMap: { [uri: string]: string } = {};
 
     let schemaRequestService: SchemaRequestService;
@@ -79,7 +80,7 @@ describe('getLanguageService()', () => {
       assert.deepEqual(result, {
         contents: {
           kind: 'markdown',
-          value: "The person's first name.\n\nSource: [my.schema.uri](my.schema.uri)",
+          value: "The person's first name.\n\nSource: [my.schema.uri](file:///my.schema.uri)",
         },
         range: {
           start: {

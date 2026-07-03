@@ -8,11 +8,13 @@ import {
   createExpectedDocumentSymbol,
   createExpectedDocumentSymbolNoDetail,
 } from './utils/verifyError';
-import { DocumentSymbol, SymbolKind, SymbolInformation } from 'vscode-languageserver-types';
+import type { DocumentSymbol, SymbolInformation } from 'vscode-languageserver-types';
+import { SymbolKind } from 'vscode-languageserver-types';
 import assert from 'assert';
 import { ServiceSetup } from './utils/serviceSetup';
-import { SettingsState, TextDocumentTestManager } from '../src/yamlSettings';
-import { LanguageHandlers } from '../src/languageserver/handlers/languageHandlers';
+import type { SettingsState } from '../src/yamlSettings';
+import { TextDocumentTestManager } from '../src/yamlSettings';
+import type { LanguageHandlers } from '../src/languageserver/handlers/languageHandlers';
 
 describe('Document Symbols Tests', () => {
   let languageHandler: LanguageHandlers;
@@ -51,11 +53,10 @@ describe('Document Symbols Tests', () => {
       });
     }
 
-    it('Document is empty', (done) => {
+    it('Document is empty', () => {
       const content = '';
       const symbols = parseNonHierarchicalSetup(content);
       assert.deepStrictEqual(symbols, []);
-      done();
     });
 
     it('Simple document symbols', () => {
@@ -159,11 +160,10 @@ describe('Document Symbols Tests', () => {
       });
     }
 
-    it('Document is empty', (done) => {
+    it('Document is empty', () => {
       const content = '';
       const symbols = parseHierarchicalSetup(content);
       assert.deepStrictEqual(symbols, []);
-      done();
     });
 
     it('Simple document symbols', () => {

@@ -3,17 +3,19 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import { TextDocument } from 'vscode-languageserver-textdocument';
+import type { TextDocument } from 'vscode-languageserver-textdocument';
 import { JSONDocument } from './jsonDocument';
-import { CST, Document, isNode, isPair, isScalar, LineCounter, Node, visit, YAMLError } from 'yaml';
-import { ASTNode, YamlNode } from '../jsonASTTypes';
-import { defaultOptions, parse as parseYAML, ParserOptions } from './yamlParser07';
-import { ErrorCode } from 'vscode-json-languageservice';
+import type { CST, Document, LineCounter, Node, YAMLError } from 'yaml';
+import { isNode, isPair, isScalar, visit } from 'yaml';
+import type { ASTNode, YamlNode } from '../jsonLanguageTypes';
+import type { ParserOptions } from './yamlParser07';
+import { defaultOptions, parse as parseYAML } from './yamlParser07';
+import { ErrorCode } from '../jsonLanguageTypes';
 import { convertAST } from './ast-converter';
-import { YAMLDocDiagnostic } from '../utils/parseUtils';
+import type { YAMLDocDiagnostic } from '../utils/parseUtils';
 import { isArrayEqual } from '../utils/arrUtils';
 import { getParent } from '../utils/yamlAstUtils';
-import { TextBuffer } from '../utils/textBuffer';
+import type { TextBuffer } from '../utils/textBuffer';
 import { getIndentation } from '../utils/strings';
 
 /**
@@ -26,6 +28,7 @@ export class SingleYAMLDocument extends JSONDocument {
   public root: ASTNode;
   public currentDocIndex: number;
   private _lineComments: string[];
+  private _documentHeaderComments: string[] = [];
 
   constructor(lineCounter?: LineCounter) {
     super(null, []);
@@ -42,6 +45,7 @@ export class SingleYAMLDocument extends JSONDocument {
     copy.uri = this.uri;
     copy.currentDocIndex = this.currentDocIndex;
     copy._lineComments = this.lineComments.slice();
+    copy._documentHeaderComments = this.documentHeaderComments.slice();
     // this will re-create root node
     copy.internalDocument = this._internalDocument.clone();
     return copy;
@@ -96,6 +100,12 @@ export class SingleYAMLDocument extends JSONDocument {
   }
   set lineComments(val: string[]) {
     this._lineComments = val;
+  }
+  get documentHeaderComments(): string[] {
+    return this._documentHeaderComments;
+  }
+  set documentHeaderComments(val: string[]) {
+    this._documentHeaderComments = val;
   }
   get errors(): YAMLDocDiagnostic[] {
     return this.internalDocument.errors.map(YAMLErrorToYamlDocDiagnostics);

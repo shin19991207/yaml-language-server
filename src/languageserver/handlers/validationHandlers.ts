@@ -2,13 +2,13 @@
  *  Copyright (c) Red Hat, Inc. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-import { Connection } from 'vscode-languageserver';
-import { TextDocument } from 'vscode-languageserver-textdocument';
-import { Diagnostic } from 'vscode-languageserver-types';
+import type { Connection } from 'vscode-languageserver';
+import type { TextDocument } from 'vscode-languageserver-textdocument';
+import type { Diagnostic } from 'vscode-languageserver-types';
 import { isKubernetesAssociatedDocument } from '../../languageservice/parser/isKubernetes';
 import { removeDuplicatesObj } from '../../languageservice/utils/arrUtils';
-import { LanguageService } from '../../languageservice/yamlLanguageService';
-import { SettingsState } from '../../yamlSettings';
+import type { LanguageService } from '../../languageservice/yamlLanguageService';
+import type { SettingsState } from '../../yamlSettings';
 
 export class ValidationHandler {
   private languageService: LanguageService;
@@ -48,37 +48,34 @@ export class ValidationHandler {
     }
   }
 
-  validateTextDocument(textDocument: TextDocument): Promise<Diagnostic[]> {
+  async validateTextDocument(textDocument: TextDocument): Promise<Diagnostic[]> {
     if (!textDocument) {
       return;
     }
 
-    return this.resolveValidationState(textDocument).then((validationEnabled) => {
-      if (!validationEnabled) {
-        this.connection.sendDiagnostics({ uri: textDocument.uri, diagnostics: [] });
-        return [];
+    const validationEnabled = await this.resolveValidationState(textDocument);
+    if (!validationEnabled) {
+      this.connection.sendDiagnostics({ uri: textDocument.uri, diagnostics: [] });
+      return [];
+    }
+    const diagnosticResults = await this.languageService.doValidation(
+      textDocument,
+      isKubernetesAssociatedDocument(textDocument, this.yamlSettings.specificValidatorPaths)
+    );
+    const diagnostics: Diagnostic[] = [];
+    for (const diagnosticItem of diagnosticResults) {
+      // Convert all warnings to errors
+      if (diagnosticItem.severity === 2) {
+        diagnosticItem.severity = 1;
       }
-
-      return this.languageService
-        .doValidation(textDocument, isKubernetesAssociatedDocument(textDocument, this.yamlSettings.specificValidatorPaths))
-        .then((diagnosticResults) => {
-          const diagnostics: Diagnostic[] = [];
-          for (const diagnosticItem of diagnosticResults) {
-            // Convert all warnings to errors
-            if (diagnosticItem.severity === 2) {
-              diagnosticItem.severity = 1;
-            }
-            diagnostics.push(diagnosticItem);
-          }
-
-          const removeDuplicatesDiagnostics = removeDuplicatesObj(diagnostics);
-          this.connection.sendDiagnostics({
-            uri: textDocument.uri,
-            diagnostics: removeDuplicatesDiagnostics,
-          });
-          return removeDuplicatesDiagnostics;
-        });
+      diagnostics.push(diagnosticItem);
+    }
+    const removeDuplicatesDiagnostics = removeDuplicatesObj(diagnostics);
+    this.connection.sendDiagnostics({
+      uri: textDocument.uri,
+      diagnostics: removeDuplicatesDiagnostics,
     });
+    return removeDuplicatesDiagnostics;
   }
 
   private async resolveValidationState(document: TextDocument): Promise<boolean> {
