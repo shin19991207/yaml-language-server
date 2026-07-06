@@ -2,7 +2,7 @@
 
 # YAML Language Server
 
-`yaml-language-server` provides YAML language features over the Language Server Protocol (LSP), including validation, completion, hover, formatting, document symbols, and schema-based intelligence.
+Provides YAML language features over the [Language Server Protocol](https://github.com/Microsoft/language-server-protocol) (LSP), including validation, completion, hover, formatting, document symbols, and schema-based intelligence.
 
 Starting from version `1.0.0`, the language server uses [eemeli/yaml](https://github.com/eemeli/yaml) as its YAML parser, which strictly enforces the specified YAML spec version. The default YAML spec version is `1.2`. Set `yaml.yamlVersion` to `1.1` for compatibility with older YAML files.
 
@@ -23,7 +23,7 @@ Schema validation supports JSON Schema `draft-04`, `draft-07`, `2019-09`, and `2
 3. **Completion**:
    - Completes YAML keys, values, and structure based on the associated schema
    - Completes scalar nodes with schema defaults when defaults are available
-4. **Hover support**:
+4. **Hover**:
    - Shows schema descriptions for YAML nodes when descriptions are available
    - Shows anchor information when `yaml.hoverAnchor` is enabled
    - Shows schema source information when `yaml.hoverSchemaSource` is enabled
@@ -31,9 +31,9 @@ Schema validation supports JSON Schema `draft-04`, `draft-07`, `2019-09`, and `2
    - Formats YAML documents
    - Supports on-type formatting on newline, including automatic indentation for mappings and array items
 
-Completion and hover content are schema-driven. Configure schemas with a modeline, `yaml.schemas`, schema association notifications, or Schema Store.
+Completion and hover content are schema-driven. See [Associating schemas](#associating-schemas) for configuration details.
 
-## Language Server Settings
+## Language server settings
 
 Settings are supplied through LSP configuration. Setting names match the `yaml.*` configuration used by common integrations.
 
@@ -70,35 +70,52 @@ Settings are supplied through LSP configuration. Setting names match the `yaml.*
 - `editor.tabSize`: Fallback indentation size when no YAML-specific tab size is provided. Defaults to `2`.
 - `[yaml].editor.formatOnType`: Client/editor setting that controls whether on-type formatting requests are sent for YAML files. When enabled by the client, `yaml-language-server` can format YAML as the user types, such as adjusting indentation after a newline.
 
-## Associating Schemas
+## Associating schemas
 
-YAML Language Server uses [JSON Schema](https://json-schema.org/) to understand the shape of a YAML file. It supports JSON Schema Draft 4, Draft 7, Draft 2019-09, and Draft 2020-12. Schema definitions can be written in JSON (`.json`) or YAML (`.yaml`).
+The language server uses [JSON Schema](https://json-schema.org/) to understand the shape of YAML files. Schema definitions can be written in JSON (`.json`) or YAML (`.yaml` or `.yml`) format.
 
-You can associate schemas with YAML files by adding a modeline or configuring `yaml.schemas` through your LSP client. When `yaml.schemaStore.enable` is enabled, as it is by default, YAML Language Server also associates schemas from [SchemaStore](https://www.schemastore.org/) with files that match their configured patterns.
+Schemas can be associated with YAML files by using a modeline, an inline `$schema` property, or the `yaml.schemas` setting. Integrations can also provide schema associations through LSP notifications. See [Schema association notification](#schema-association-notification) for integration details.
 
-### Using a Modeline
+When multiple schema sources or schema-disabling settings apply to the same file, see [Schema resolution priority](#schema-resolution-priority).
 
-You can specify a JSON schema directly in a YAML file with a modeline comment. If a relative path is specified, it is resolved from the YAML file location, not from the workspace root.
+### Using a modeline
+
+Specify a schema for a YAML file by adding a modeline comment at the top of the file:
 
 ```yaml
-# yaml-language-server: $schema=<urlToTheSchema>
+# yaml-language-server: $schema=<schema-url-or-path>
 ```
 
 The IntelliJ-compatible `$schema` comment format is also supported:
 
 ```yaml
-# $schema: <urlOrPathToTheSchema>
+# $schema: <schema-url-or-path>
 ```
+
+Relative paths in modelines are resolved from the YAML file's location, not the workspace root.
+
+### Using an inline `$schema` property
+
+Specify a schema for a YAML file by adding a top-level `$schema` property:
+
+```yaml
+$schema: <schema-url-or-path>
+```
+
+Relative paths in inline `$schema` properties are resolved from the YAML file's location, not the workspace root.
 
 ### Using `yaml.schemas`
 
-The `yaml.schemas` setting maps schemas to file patterns using key-value pairs:
+Configure schema-to-file mappings in your LSP client settings using the `yaml.schemas` option.
+
+Each entry maps a schema to one or more file patterns:
+
 * **Key**: Schema URI, local file path, or the `kubernetes` keyword
 * **Value**: A glob pattern or array of glob patterns
 
-#### Remote Schemas
+#### Remote schemas
 
-Associate an online schema with YAML files:
+Use a schema URL as the key:
 
 ```json
 {
@@ -109,9 +126,11 @@ Associate an online schema with YAML files:
 }
 ```
 
-#### Local Schemas
+#### Local schemas
 
-Local schema paths can be absolute paths, file URIs, or relative paths. In a single-folder workspace, relative paths are resolved from the workspace root.
+Use an absolute path, file URI, or relative path as the key.
+
+In a single-folder workspace, relative schema paths are resolved from the workspace root.
 
 On macOS or Linux:
 
@@ -137,19 +156,19 @@ On Windows:
 }
 ```
 
-**Multi-Root Workspaces**
+**Multi-root workspaces**
 
-In a multi-root workspace, prefix local schema paths with the workspace folder that contains the schema.
+In multi-root workspaces, prefix schema paths with the workspace folder name that contains the schema.
 
-Suppose you have a multi-root workspace that contains two workspace folders, `My_first_project` and `My_second_project`:
+Suppose the workspace contains two folders, `project-a` and `project-b`:
 
 ```shell
-My_first_project/
+project-a/
 ├── test.yaml
-└── my_schema.json
-My_second_project/
-├── test2.yaml
-└── my_schema2.json
+└── schema.json
+project-b/
+├── test.yaml
+└── schema.json
 ```
 
 Use the workspace folder name at the start of each schema path key:
@@ -157,15 +176,15 @@ Use the workspace folder name at the start of each schema path key:
 ```json
 {
   "yaml.schemas": {
-    "My_first_project/my_schema.json": "test.yaml",
-    "My_second_project/my_schema2.json": "test2.yaml"
+    "project-a/schema.json": "project-a/test.yaml",
+    "project-b/schema.json": "project-b/test.yaml"
   }
 }
 ```
 
-#### Using the Kubernetes Schema Keyword
+#### Kubernetes schemas
 
-Use the reserved `kubernetes` keyword to validate Kubernetes YAML files. The language server automatically resolves it to the appropriate versioned Kubernetes schema URL based on your `yaml.kubernetesVersion` setting (or the default version).
+Use the reserved `kubernetes` keyword to validate Kubernetes YAML files. The language server resolves the keyword to a versioned Kubernetes schema URL based on `yaml.kubernetesVersion`.
 
 ```json
 {
@@ -175,9 +194,7 @@ Use the reserved `kubernetes` keyword to validate Kubernetes YAML files. The lan
 }
 ```
 
-**Specifying Kubernetes Version**
-
-Use `yaml.kubernetesVersion` to choose the Kubernetes version used for the generated schema URL.
+Specify `yaml.kubernetesVersion` to choose the Kubernetes schema version:
 
 ```json
 {
@@ -188,26 +205,13 @@ Use `yaml.kubernetesVersion` to choose the Kubernetes version used for the gener
 }
 ```
 
-### Schema Association Notifications
-
-Integrations can provide schema associations through the `json/schemaAssociations` notification. These associations are useful when an integration owns a YAML file type and wants the server to apply a specific schema automatically.
-
-### Schema Priority
-
-When multiple schema sources could apply to the same file, the language server uses this priority order from highest to lowest:
-
-1. Modeline
-2. Custom schema provider API
-3. `yaml.disableSchemaDetection`
-4. `yaml.schemas`
-5. Schema association notification
-6. Schema Store
+If `yaml.kubernetesVersion` is not set, the language server uses the default Kubernetes version.
 
 ## Suppressing Diagnostics
 
 To hide diagnostics for a specific YAML line, add a suppression comment immediately before that line. To disable schema validation for an entire file, see [Disabling Schema Validation](#disabling-schema-validation).
 
-### Suppress All Diagnostics on a Line
+### Suppress all diagnostics on a line
 
 Add `# yaml-language-server-disable` immediately before the line that produces the diagnostic:
 
@@ -216,7 +220,7 @@ Add `# yaml-language-server-disable` immediately before the line that produces t
 version: 123
 ```
 
-### Suppress Matching Diagnostics
+### Suppress matching diagnostics
 
 Add one or more comma-separated diagnostic message substrings after `# yaml-language-server-disable`. Only diagnostics whose messages contain a matching substring are suppressed; the rest are still reported. Matching is case-insensitive.
 
@@ -236,21 +240,29 @@ version: 123
 
 The substrings are matched against the diagnostic message text reported by the language server.
 
-## Disabling Schema Validation
+## Disabling schema validation
 
 Disabling schema validation stops schema-based diagnostics. The file is still parsed as YAML, so YAML syntax errors can still be reported.
 
-### Using a Modeline
+### Using a modeline
 
-A modeline can disable schema validation for the current file by setting `$schema` to `none`:
+Disable schema validation for the current file by setting `$schema` to `none` in a modeline:
 
 ```yaml
 # yaml-language-server: $schema=none
 ```
 
+The IntelliJ-compatible `$schema` comment format is also supported:
+
+```yaml
+# $schema: none
+```
+
 ### Using `yaml.disableSchemaDetection`
 
-To prevent detected schemas from being applied to specific YAML files, configure `yaml.disableSchemaDetection` with one or more glob patterns. For matching files, schemas from `yaml.schemas`, schema association notifications, and Schema Store are ignored. Modelines still apply.
+Prevent detected schemas from being applied to specific YAML files by configuring `yaml.disableSchemaDetection` with one or more glob patterns.
+
+For matching files, schemas from `yaml.schemas`, schema association notifications, and Schema Store are ignored.
 
 For one file pattern:
 
@@ -264,7 +276,19 @@ For multiple file patterns:
 yaml.disableSchemaDetection: ["some.yaml", "**/.github/workflows/*.yaml"]
 ```
 
-## Adding Custom Tags
+### Schema resolution priority
+
+When multiple schema sources apply to the same YAML file, the language server uses the following priority order, from highest to lowest:
+
+1. Modeline
+2. Inline `$schema` property
+3. Custom schema provider API
+4. `yaml.disableSchemaDetection`
+5. `yaml.schemas`
+6. Schema association notification
+7. Schema Store
+
+## Adding custom tags
 
 YAML custom tags extend the language with application-specific syntax. Configure custom tags with the `yaml.customTags` setting.
 
@@ -326,11 +350,11 @@ This repository only contains the server implementation. Here are some known cli
 
 ## Integrating
 
-yaml-language-server can be integrated with editors, IDEs, CLIs, and other tools that support the Language Server Protocol. See [Clients](#clients) for known integrations.
+The language server can be integrated with editors, IDEs, CLIs, and other tools that support the Language Server Protocol. See [Clients](#clients) for known integrations.
 
-You can also launch the server directly and connect to it from your own LSP client.
+The server can also be launched directly and connected to an LSP client.
 
-### Using the npm Package
+### Using the npm package
 
 Install yaml-language-server globally:
 
@@ -346,7 +370,7 @@ yaml-language-server --socket=<port>
 yaml-language-server --node-ipc
 ```
 
-### Using a Local Build
+### Using a local build
 
 Clone this repository:
 
@@ -371,7 +395,7 @@ node ./out/server/src/server.js --socket=<port>
 node ./out/server/src/server.js --node-ipc
 ```
 
-### Using the Container Image
+### Using the container image
 
 The container image is published at `quay.io/redhat-developer/yaml-language-server`.
 
@@ -387,97 +411,131 @@ To run the server on a socket:
 docker run --rm -p <port>:<port> quay.io/redhat-developer/yaml-language-server:latest --socket=<port>
 ```
 
-## Language Server Protocol
+## LSP extensions
 
-yaml-language-server uses `vscode-languageserver@^9.0.0`, which implements [LSP 3.17](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/).
+The server uses `vscode-languageserver@^9.0.0` and implements [LSP 3.17](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/).
 
-### Custom Schema Selection Messages
+The following non-standard LSP extensions support schema association and schema selection.
 
-yaml-language-server defines the following custom LSP messages for schema selection.
+### Schema association
 
-#### SupportSchemaSelection Notification
+#### `json/schemaAssociations` notification
 
-Sent from the language client to the server to indicate that the client supports schema selection.
+Sent from the client to the server to associate schemas with YAML file patterns. This is useful when a client or editor extension owns a YAML file type and needs the server to apply a schema automatically.
 
-_Notification:_
-
-- method: `'yaml/supportSchemaSelection'`
-- params: `void`
-
-#### SchemaStoreInitialized Notification
-
-Sent from the server to the language client after Schema Store initialization finishes. After receiving this notification, the client can request schema information from the server.
+Each notification replaces the schema associations previously provided through this method.
 
 _Notification:_
 
-- method: `'yaml/schema/store/initialized'`
+- method: `json/schemaAssociations`
+- params: `ISchemaAssociations | SchemaConfiguration[]`
+
+```typescript
+/**
+ * Maps schema URIs to file patterns.
+ */
+type ISchemaAssociations = Record<string, string[]>;
+
+interface SchemaConfiguration {
+  /**
+   * URI that identifies the schema.
+   */
+  uri: string;
+  /**
+   * File patterns associated with the schema.
+   */
+  fileMatch?: string[];
+  /**
+   * Optional inline schema content. When omitted, the server attempts to
+   * load the schema identified by `uri`.
+   */
+  schema?: JSONSchema;
+}
+```
+
+### Schema selection
+
+These extensions allow clients to discover schemas known to the server and determine which schemas apply to an open YAML document.
+
+#### `yaml/supportSchemaSelection` notification
+
+Sent from the client to the server to opt in to the schema-selection workflow.
+
+_Notification:_
+
+- method: `yaml/supportSchemaSelection`
 - params: `void`
 
-#### GetAllSchemas Request
+#### `yaml/schema/store/initialized` notification
 
-Sent from the language client to the server to retrieve all known schemas. The document URI is used to mark which schemas apply to the current document.
+Sent from the server to the client after Schema Store initialization finishes. The server sends this notification only after the client has sent `yaml/supportSchemaSelection`.
+
+After receiving the notification, the client can request schema information from the server.
+
+_Notification:_
+
+- method: `yaml/schema/store/initialized`
+- params: `{}`
+
+#### `yaml/get/all/jsonSchemas` request
+
+Sent from the client to the server to retrieve all known schemas. The server uses the supplied document URI to indicate which schemas apply to that document.
 
 _Request:_
 
-- method: `'yaml/get/all/jsonSchemas'`;
-- params: document URI
+- method: `yaml/get/all/jsonSchemas`
+- params: URI of an open YAML document as a `string`
 
 _Response:_
 
 - result: `JSONSchemaDescriptionExt[]`
 
-```typescript
-interface JSONSchemaDescriptionExt {
-  /**
-   * Schema URI
-   */
-  uri: string;
-  /**
-   * Schema name from Schema Store
-   */
-  name?: string;
-  /**
-   * Schema description from Schema Store
-   */
-  description?: string;
-  /**
-   * Whether this schema is used for the current document
-   */
-  usedForCurrentFile: boolean;
-  /**
-   * Whether this schema comes from Schema Store
-   */
-  fromStore: boolean;
-}
-```
+#### `yaml/get/jsonSchema` request
 
-#### GetSchemas Request
-
-Sent from the language client to the server to retrieve the schemas used for the current document. Clients can use this request to show which schemas are currently active for that document.
+Sent from the client to the server to retrieve the schemas that apply to an open YAML document. Clients can use this request to display the document's active schemas.
 
 _Request:_
 
-- method: `'yaml/get/jsonSchema'`;
-- params: document URI
+- method: `yaml/get/jsonSchema`
+- params: URI of an open YAML document as a `string`
 
 _Response:_
 
 - result: `JSONSchemaDescription[]`
 
+The schema-selection requests use the following response types:
+
 ```typescript
-interface JSONSchemaDescriptionExt {
+type SchemaVersions = { [version: string]: string };
+
+interface JSONSchemaDescription {
   /**
-   * Schema URI
+   * Schema URI.
    */
   uri: string;
   /**
-   * Schema name from Schema Store
+   * Schema name, when available.
    */
   name?: string;
   /**
-   * Schema description from Schema Store
+   * Schema description, when available.
    */
   description?: string;
+  /**
+   * Available schema versions, when provided by the schema source.
+   */
+  versions?: SchemaVersions;
+}
+
+interface JSONSchemaDescriptionExt extends JSONSchemaDescription {
+  /**
+   * Whether the schema applies to the requested document.
+   */
+  usedForCurrentFile: boolean;
+  /**
+   * Whether the schema comes from Schema Store.
+   */
+  fromStore: boolean;
 }
 ```
 
@@ -515,4 +573,4 @@ Building YAML Language Server produces [CommonJS](http://www.commonjs.org/) outp
 ### CI
 
 GitHub Actions publish each change in the `main` branch to the [npm registry](https://www.npmjs.com/package/yaml-language-server) with the `next` tag.
-You may use the `next` version to adopt the latest changes into your project.
+Use the `next` version to adopt the latest changes into a project.
