@@ -330,7 +330,11 @@ some_string: !Seq-as-string-example
 
 In the last example, `!Seq-as-string-example` is written on a YAML sequence, but schema validation treats the tagged value as a string because its return type is `string`.
 
-## Clients
+## Using the language server
+
+The language server can be used through an existing LSP client or launched directly for integration with an editor, IDE, CLI, or another development tool.
+
+### Existing clients
 
 This repository only contains the server implementation. Here are some known clients consuming this server:
 
@@ -348,13 +352,11 @@ This repository only contains the server implementation. Here are some known cli
 - [Kate](https://kate-editor.org/)
 - [yaml-schema-lint](https://github.com/X-Guardian/yaml-schema-lint), a CLI for schema linting YAML files
 
-## Integrating
+### Building a custom integration
 
-The language server can be integrated with editors, IDEs, CLIs, and other tools that support the Language Server Protocol. See [Clients](#clients) for known integrations.
+To build a custom integration, run the server using one of the following options.
 
-The server can also be launched directly and connected to an LSP client.
-
-### Using the npm package
+#### Using the npm package
 
 Install yaml-language-server globally:
 
@@ -370,7 +372,7 @@ yaml-language-server --socket=<port>
 yaml-language-server --node-ipc
 ```
 
-### Using a local build
+#### Using a local build
 
 Clone this repository:
 
@@ -395,7 +397,7 @@ node ./out/server/src/server.js --socket=<port>
 node ./out/server/src/server.js --node-ipc
 ```
 
-### Using the container image
+#### Using the container image
 
 The container image is published at `quay.io/redhat-developer/yaml-language-server`.
 
