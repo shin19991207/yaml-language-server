@@ -1081,8 +1081,8 @@ address:
   });
 
   describe('Test getGroupVersionKindFromDocument', function () {
-    it('builtin kubernetes resource group should not get resolved', async () => {
-      checkReturnGroupVersionKind('apiVersion: v1\nkind: Pod', true, undefined, 'v1', 'Pod');
+    it('should resolve the implicit core group for builtin kubernetes resources', async () => {
+      checkReturnGroupVersionKind('apiVersion: v1\nkind: Pod', false, 'core', 'v1', 'Pod');
     });
 
     it('builtin kubernetes resource with complex apiVersion should get resolved ', async () => {
