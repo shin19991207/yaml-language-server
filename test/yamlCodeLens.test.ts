@@ -165,6 +165,15 @@ describe('YAML CodeLens', () => {
     expect((yamlSchemaService.getSchemaForResource.secondCall.args[1] as SingleYAMLDocument).currentDocIndex).to.eq(1);
   });
 
+  it('should show the Kubernetes version for the generic all.json schema', async () => {
+    const doc = setupTextDocument('apiVersion: v1\nkind: UnknownCoreResource');
+    const schemaUrl = 'https://example.com/v1.36.1-standalone-strict/all.json';
+    yamlSchemaService.getSchemaForResource.resolves(createResolvedSchema({ url: schemaUrl }));
+    const codeLens = new YamlCodeLens(yamlSchemaService as unknown as YAMLSchemaService, telemetry);
+    const result = await codeLens.getCodeLens(doc);
+    expect(result).is.deep.equal([createCodeLens('Kubernetes v1.36.1', YamlCommands.JUMP_TO_SCHEMA, schemaUrl)]);
+  });
+
   it('command name should contains schema title', async () => {
     const doc = setupTextDocument('foo: bar');
     const schema = {
