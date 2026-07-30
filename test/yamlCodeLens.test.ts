@@ -144,6 +144,20 @@ describe('YAML CodeLens', () => {
     );
   });
 
+  it('should place a CodeLens after the separator for a trailing empty document', async () => {
+    const doc = setupTextDocument('foo: bar\n---\nfoo: bar\n---\n');
+    const schema: JSONSchema = {
+      url: 'some://url/to/schema.json',
+    };
+    yamlSchemaService.getSchemaForResource.resolves(createResolvedSchema(schema));
+
+    const codeLens = new YamlCodeLens(yamlSchemaService as unknown as YAMLSchemaService, telemetry);
+    const result = await codeLens.getCodeLens(doc);
+
+    expect(result).to.have.length(3);
+    expect(result[2].range).to.deep.equal(Range.create(4, 0, 4, 0));
+  });
+
   it('should show document-specific Kubernetes schemas in document order', async () => {
     const doc = setupTextDocument(
       'apiVersion: v1\nkind: Pod\n---\napiVersion: admissionregistration.k8s.io/v1\nkind: MutatingAdmissionPolicy'

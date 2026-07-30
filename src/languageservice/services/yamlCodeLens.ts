@@ -31,7 +31,10 @@ export class YamlCodeLens {
 
         const schemaUrls = getSchemaUrls(schema.schema);
         const documentOffset = currentYAMLDoc.root?.offset ?? currentYAMLDoc.internalDocument?.range?.[0] ?? 0;
-        const documentPosition = document.positionAt(documentOffset);
+        let documentPosition = document.positionAt(documentOffset);
+        if (currentYAMLDoc.root?.length === 0 && documentPosition.character > 0) {
+          documentPosition = { line: documentPosition.line + 1, character: 0 };
+        }
         const documentRange = Range.create(documentPosition, documentPosition);
 
         for (const urlToSchema of schemaUrls) {
