@@ -135,6 +135,31 @@ describe('YAML Schema Service', () => {
       expect(schema.schema.type).eqls('array');
     });
 
+    for (const { description, uri } of [
+      { description: 'encoded Windows drive colon', uri: 'file:///c%3A/Users/user1/schema.json' },
+      { description: 'unencoded Windows drive colon', uri: 'file:///c:/Users/user1/schema.json' },
+    ]) {
+      it(`should resolve a schema URI with an ${description}`, async () => {
+        const yamlDock = parse('foo: bar');
+        const normalizedUri = 'file:///c:/Users/user1/schema.json';
+        requestServiceMock = sandbox.fake.resolves(
+          JSON.stringify({
+            type: 'object',
+            properties: {
+              foo: { type: 'string' },
+            },
+          })
+        );
+
+        const service = new SchemaService.YAMLSchemaService(requestServiceMock);
+        service.registerExternalSchema(uri, ['test.yaml']);
+        const schema = await service.getSchemaForResource('test.yaml', yamlDock.documents[0]);
+
+        expect(requestServiceMock).calledOnceWithExactly(normalizedUri);
+        expect(schema.schema.properties.foo).to.include({ type: 'string' });
+      });
+    }
+
     it('should use local sibling schema path before remote $id ref', async () => {
       const content = `# yaml-language-server: $schema=file:///schemas/primary.json\nmode: stage`;
       const yamlDock = parse(content);

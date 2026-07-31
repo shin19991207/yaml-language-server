@@ -870,6 +870,32 @@ address:
       languageSettingsSetup = new ServiceSetup().withCompletion();
     });
 
+    for (const { description, uri } of [
+      { description: 'encoded Windows drive colon', uri: 'file:///c%3A/Users/user1/schema.json' },
+      { description: 'unencoded Windows drive colon', uri: 'file:///c:/Users/user1/schema.json' },
+    ]) {
+      it(`Preserves settings priority for ${description}`, async () => {
+        languageSettingsSetup
+          .withSchemaFileMatch({
+            fileMatch: ['test.yaml'],
+            uri: 'https://example.test/schema-store.json',
+            priority: SchemaPriority.SchemaStore,
+            schema: schemaStoreSample,
+          })
+          .withSchemaFileMatch({
+            fileMatch: ['test.yaml'],
+            uri,
+            priority: SchemaPriority.Settings,
+            schema: schemaSettingsSample,
+          });
+        languageService.configure(languageSettingsSetup.languageSettings);
+        const document = setupTextDocument('');
+        const result = await languageService.doComplete(document, Position.create(0, 0), false);
+        assert.strictEqual(result.items.length, 1);
+        assert.strictEqual(result.items[0].label, 'settings');
+      });
+    }
+
     it('Modeline Schema takes precendence over all other schema APIs', async () => {
       languageSettingsSetup
         .withSchemaFileMatch({
