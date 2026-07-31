@@ -1483,12 +1483,13 @@ export class YAMLSchemaService implements IJSONSchemaService {
 
   // Set the priority of a schema in the schema service
   public addSchemaPriority(uri: string, priority: number): void {
-    let currSchemaArray = this.schemaPriorityMapping.get(uri);
+    const id = normalizeId(uri);
+    const currSchemaArray = this.schemaPriorityMapping.get(id);
     if (currSchemaArray) {
-      currSchemaArray = currSchemaArray.add(priority);
-      this.schemaPriorityMapping.set(uri, currSchemaArray);
+      currSchemaArray.add(priority);
+      this.schemaPriorityMapping.set(id, currSchemaArray);
     } else {
-      this.schemaPriorityMapping.set(uri, new Set<SchemaPriority>().add(priority));
+      this.schemaPriorityMapping.set(id, new Set<SchemaPriority>().add(priority));
     }
   }
 
