@@ -124,6 +124,11 @@ interface SchemaStoreSchema {
   versions?: SchemaVersions;
 }
 
+interface SchemaCandidate {
+  uri: string;
+  prioritySource: string;
+}
+
 export interface IJSONSchemaService {
   /**
    * Clears all cached schema files
@@ -506,6 +511,35 @@ export class YAMLSchemaService implements IJSONSchemaService {
     }
   }
 
+  private async getSchemaCandidatesForResource(resource: string, doc: JSONDocument): Promise<SchemaCandidate[]> {
+    const seen = new Set<string>();
+    const candidates: SchemaCandidate[] = [];
+    for (const entry of this.filePatternAssociations) {
+      if (entry.matchesPattern(resource)) {
+        for (const schemaId of entry.getURIs()) {
+          if (!seen.has(schemaId)) {
+            let schemaUri = schemaId;
+            if (this.yamlSettings?.kubernetesCRDStoreEnabled && isKubernetes(schemaId)) {
+              const kubernetesSchema = await this.getResolvedSchema(schemaId);
+              if (kubernetesSchema) {
+                schemaUri =
+                  autoDetectKubernetesSchema(
+                    doc,
+                    kubernetesSchema,
+                    schemaId,
+                    this.yamlSettings.kubernetesCRDStoreUrl ?? CRD_CATALOG_URL
+                  ) ?? schemaId;
+              }
+            }
+            candidates.push({ uri: schemaUri, prioritySource: schemaId });
+            seen.add(schemaId);
+          }
+        }
+      }
+    }
+    return candidates;
+  }
+
   private async getSchemaIdsForResource(resource: string, doc: JSONDocument): Promise<string[]> {
     const modelineSchema = this.resolveModelineSchema(resource, doc);
     if (modelineSchema) {
@@ -535,20 +569,8 @@ export class YAMLSchemaService implements IJSONSchemaService {
       }
     }
 
-    const seen: { [schemaId: string]: boolean } = Object.create(null);
-    const schemas: string[] = [];
-    for (const entry of this.filePatternAssociations) {
-      if (entry.matchesPattern(resource)) {
-        for (const schemaId of entry.getURIs()) {
-          if (!seen[schemaId]) {
-            schemas.push(schemaId);
-            seen[schemaId] = true;
-          }
-        }
-      }
-    }
-
-    return schemas.length > 0 ? this.highestPrioritySchemas(schemas) : [];
+    const candidates = await this.getSchemaCandidatesForResource(resource, doc);
+    return this.highestPrioritySchemas(candidates);
   }
 
   public async getSchemaDescriptionsForResource(resource: string, doc: JSONDocument): Promise<JSONSchemaDescription[]> {
@@ -1390,51 +1412,13 @@ export class YAMLSchemaService implements IJSONSchemaService {
       return this.finalizeResolvedSchema(schema, schemaHandle.uri, doc, false);
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const resolveSchema = async (): Promise<any> => {
-      const seen: { [schemaId: string]: boolean } = Object.create(null);
-      const schemas: string[] = [];
-      let k8sAllSchema: ResolvedSchema = undefined;
-      let k8sSchemaUrl: string | undefined = undefined;
-
-      for (const entry of this.filePatternAssociations) {
-        if (entry.matchesPattern(resource)) {
-          for (const schemaId of entry.getURIs()) {
-            if (!seen[schemaId]) {
-              if (this.yamlSettings?.kubernetesCRDStoreEnabled && isKubernetes(schemaId)) {
-                if (!k8sAllSchema) {
-                  k8sSchemaUrl = schemaId;
-                  k8sAllSchema = await this.getResolvedSchema(schemaId);
-                }
-                const kubeSchema = autoDetectKubernetesSchema(
-                  doc,
-                  k8sAllSchema,
-                  k8sSchemaUrl ?? schemaId,
-                  this.yamlSettings.kubernetesCRDStoreUrl ?? CRD_CATALOG_URL
-                );
-                if (kubeSchema) {
-                  schemas.push(kubeSchema);
-                  seen[schemaId] = true;
-                } else {
-                  schemas.push(schemaId);
-                  seen[schemaId] = true;
-                }
-              } else {
-                schemas.push(schemaId);
-                seen[schemaId] = true;
-              }
-            }
-          }
-        }
-      }
-
+    const resolveSchema = async (): Promise<ResolvedSchema> => {
+      const candidates = await this.getSchemaCandidatesForResource(resource, doc);
+      const schemas = this.highestPrioritySchemas(candidates);
       if (schemas.length > 0) {
-        // Join all schemas with the highest priority.
-        const highestPrioSchemas = this.highestPrioritySchemas(schemas);
-        return resolveSchemaForResource(highestPrioSchemas);
+        return resolveSchemaForResource(schemas);
       }
-
-      return Promise.resolve(null);
+      return null;
     };
     const modelineSchema = this.resolveModelineSchema(resource, doc);
     if (modelineSchema) {
@@ -1511,12 +1495,12 @@ export class YAMLSchemaService implements IJSONSchemaService {
   /**
    * Search through all the schemas and find the ones with the highest priority
    */
-  private highestPrioritySchemas(schemas: string[]): string[] {
+  private highestPrioritySchemas(candidates: SchemaCandidate[]): string[] {
     let highestPrio = 0;
     const priorityMapping = new Map<SchemaPriority, string[]>();
-    schemas.forEach((schema) => {
+    candidates.forEach((candidate) => {
       // If the schema does not have a priority then give it a default one of [0]
-      const priority = this.schemaPriorityMapping.get(schema) || [0];
+      const priority = this.schemaPriorityMapping.get(candidate.prioritySource) || [0];
       priority.forEach((prio) => {
         if (prio > highestPrio) {
           highestPrio = prio;
@@ -1525,10 +1509,10 @@ export class YAMLSchemaService implements IJSONSchemaService {
         // Build up a mapping of priority to schemas so that we can easily get the highest priority schemas easier
         let currPriorityArray = priorityMapping.get(prio);
         if (currPriorityArray) {
-          currPriorityArray = (currPriorityArray as string[]).concat(schema);
+          currPriorityArray = (currPriorityArray as string[]).concat(candidate.uri);
           priorityMapping.set(prio, currPriorityArray);
         } else {
-          priorityMapping.set(prio, [schema]);
+          priorityMapping.set(prio, [candidate.uri]);
         }
       });
     });

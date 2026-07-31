@@ -28,6 +28,10 @@ export function autoDetectKubernetesSchema(
   if (builtinResource) {
     return builtinResource;
   }
+  // core resources cannot be CRDs: fall back to all.json for unknown core kinds
+  if (gvk.group === 'core') {
+    return undefined;
+  }
   const customResource = autoDetectCustomResource(gvk, crdCatalogURI);
   if (customResource) {
     return customResource;
@@ -115,7 +119,8 @@ export function getGroupVersionKindFromDocument(doc: SingleYAMLDocument | JSONDo
         return undefined;
       }
 
-      const [group, version] = groupVersion.split('/');
+      const groupVersionParts = groupVersion.split('/');
+      const [group, version] = groupVersionParts.length === 1 ? ['core', groupVersionParts[0]] : groupVersionParts;
       if (!group || !version) {
         return undefined;
       }

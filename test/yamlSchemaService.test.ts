@@ -8,11 +8,13 @@ import * as path from 'path';
 import * as sinon from 'sinon';
 import sinonChai from 'sinon-chai';
 import * as url from 'url';
+import { TextDocument } from 'vscode-languageserver-textdocument';
 import * as YAML from 'yaml';
 import type { JSONSchema } from '../src/languageservice/jsonSchema';
 import { parse } from '../src/languageservice/parser/yamlParser07';
 import * as SchemaService from '../src/languageservice/services/yamlSchemaService';
 import { DEFAULT_KUBERNETES_SCHEMA_VERSION, getSchemaUrls } from '../src/languageservice/utils/schemaUrls';
+import { SchemaPriority } from '../src/languageservice/yamlLanguageService';
 import { SettingsState } from '../src/yamlSettings';
 
 const BASE_KUBERNETES_SCHEMA_URL = `https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/${DEFAULT_KUBERNETES_SCHEMA_VERSION}-standalone-strict/`;
@@ -663,6 +665,20 @@ spec:
       expect(requestServiceMock.callCount).equals(4);
     });
 
+    it('should fall back to all.json instead of the CRD catalog for an unknown core resource', async () => {
+      const yamlDock = parse('apiVersion: v1\nkind: UnknownCoreResource');
+      const settings = new SettingsState();
+      settings.kubernetesCRDStoreEnabled = true;
+      requestServiceMock = sandbox.fake.resolves('{"oneOf": []}');
+
+      const service = new SchemaService.YAMLSchemaService(requestServiceMock, undefined, undefined, settings);
+      service.registerExternalSchema(KUBERNETES_SCHEMA_URL, ['*.yaml']);
+      const resolvedSchema = await service.getSchemaForResource('test.yaml', yamlDock.documents[0]);
+
+      expect(resolvedSchema.schema.url).equals(KUBERNETES_SCHEMA_URL);
+      expect(requestServiceMock).calledOnceWithExactly(KUBERNETES_SCHEMA_URL);
+    });
+
     it('should not get schema from crd catalog if definition in kubernetes schema (multiple oneOf)', async () => {
       const documentContent = 'apiVersion: apps/v1\nkind: Deployment';
       const content = `${documentContent}`;
@@ -867,6 +883,126 @@ spec:
       expect(resolvedSchema.schema.url).eqls(
         BASE_KUBERNETES_SCHEMA_URL + '_definitions.json#/definitions/io.k8s.api.autoscaling.v2.HorizontalPodAutoscaler'
       );
+    });
+
+    describe('document-specific Kubernetes schema priority', () => {
+      const podDefinition = 'io.k8s.api.core.v1.Pod';
+      const mapiDefinition = 'io.k8s.api.admissionregistration.v1.MutatingAdmissionPolicy';
+      const aerleonSchemaURI = 'https://raw.githubusercontent.com/aerleon/aerleon/main/schemas/aerleon-policies.schema.json';
+      const pod = `apiVersion: v1
+kind: Pod
+metadata:
+  name: irrelevant
+spec:
+  foo1: bar
+  containers: []`;
+      const policy = `apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingAdmissionPolicy
+metadata:
+  name: irrelevant
+spec:
+  foo2: bar
+  failurePolicy: Fail`;
+
+      let service: SchemaService.YAMLSchemaService;
+
+      beforeEach(() => {
+        const definitionsSchema = JSON.stringify({
+          definitions: {
+            [podDefinition]: {
+              type: 'object',
+              properties: {
+                apiVersion: { type: 'string' },
+                kind: { type: 'string' },
+                metadata: { type: 'object' },
+                spec: {
+                  type: 'object',
+                  properties: {
+                    containers: { type: 'array' },
+                  },
+                  additionalProperties: false,
+                },
+              },
+            },
+            [mapiDefinition]: {
+              type: 'object',
+              properties: {
+                apiVersion: { type: 'string' },
+                kind: { type: 'string' },
+                metadata: { type: 'object' },
+                spec: {
+                  type: 'object',
+                  properties: {
+                    failurePolicy: { type: 'string' },
+                  },
+                  additionalProperties: false,
+                },
+              },
+            },
+          },
+        });
+        requestServiceMock = sandbox.fake((uri) => {
+          if (uri === KUBERNETES_SCHEMA_URL) {
+            return Promise.resolve(
+              JSON.stringify({
+                oneOf: [
+                  { $ref: `_definitions.json#/definitions/${podDefinition}` },
+                  { $ref: `_definitions.json#/definitions/${mapiDefinition}` },
+                ],
+              })
+            );
+          }
+          if (uri === BASE_KUBERNETES_SCHEMA_URL + '_definitions.json') {
+            return Promise.resolve(definitionsSchema);
+          }
+          return Promise.resolve(undefined);
+        });
+
+        const settings = new SettingsState();
+        settings.kubernetesCRDStoreEnabled = true;
+        service = new SchemaService.YAMLSchemaService(requestServiceMock, undefined, undefined, settings);
+        service.registerExternalSchema(KUBERNETES_SCHEMA_URL, ['templates/**']);
+        service.addSchemaPriority(KUBERNETES_SCHEMA_URL, SchemaPriority.SchemaAssociation);
+        service.registerExternalSchema(aerleonSchemaURI, ['**/policies/**/*.yaml'], { type: 'object' });
+        service.addSchemaPriority(aerleonSchemaURI, SchemaPriority.SchemaStore);
+      });
+
+      async function resolveAndValidate(content: string): Promise<{ schemaUrls: string[]; messages: string[] }> {
+        const yamlDock = parse(content);
+        const textDocument = TextDocument.create('file:///templates/policies/foo.yaml', 'yaml', 0, content);
+        const resolvedSchemas = await Promise.all(
+          yamlDock.documents.map((document) => service.getSchemaForResource('templates/policies/foo.yaml', document))
+        );
+        const messages = yamlDock.documents.flatMap((document, index) =>
+          document.validate(textDocument, resolvedSchemas[index].schema).map((diagnostic) => diagnostic.message)
+        );
+        return {
+          schemaUrls: resolvedSchemas.map((schema) => schema.schema.url),
+          messages,
+        };
+      }
+
+      it('should select and validate a document-specific Kubernetes schema for a single document', async () => {
+        const result = await resolveAndValidate(policy);
+
+        expect(result.schemaUrls).deep.equals([BASE_KUBERNETES_SCHEMA_URL + `_definitions.json#/definitions/${mapiDefinition}`]);
+        expect(result.messages).deep.equals(['Property foo2 is not allowed.']);
+      });
+
+      for (const [name, content] of [
+        ['Pod first', `${pod}\n---\n${policy}`],
+        ['MutatingAdmissionPolicy first', `${policy}\n---\n${pod}`],
+      ]) {
+        it(`should select and validate document-specific Kubernetes schemas with ${name}`, async () => {
+          const result = await resolveAndValidate(content);
+
+          expect(result.schemaUrls).to.have.members([
+            BASE_KUBERNETES_SCHEMA_URL + `_definitions.json#/definitions/${podDefinition}`,
+            BASE_KUBERNETES_SCHEMA_URL + `_definitions.json#/definitions/${mapiDefinition}`,
+          ]);
+          expect(result.messages).to.have.members(['Property foo1 is not allowed.', 'Property foo2 is not allowed.']);
+        });
+      }
     });
 
     it('should support extglob !(config) pattern', () => {

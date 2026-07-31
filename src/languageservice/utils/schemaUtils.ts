@@ -45,9 +45,13 @@ export function getSchemaRefTypeTitle($ref: string): string {
 
 export function getSchemaTitle(schema: JSONSchema, url: string): string {
   const uri = URI.parse(url);
-  let baseName = path.basename(uri.fsPath);
-  if (!path.extname(uri.fsPath)) {
-    baseName += '.json';
+  const baseName = path.basename(uri.fsPath);
+  const fragmentName = uri.fragment.split('/').filter(Boolean).pop();
+  const kubernetesVersion = uri.path.match(/\/(v\d+\.\d+\.\d+)-standalone-strict\/(?:_definitions|all)\.json$/)?.[1];
+  if (kubernetesVersion) {
+    return fragmentName
+      ? `${fragmentName.split('.').pop()} (Kubernetes ${kubernetesVersion})`
+      : `Kubernetes ${kubernetesVersion}`;
   }
   if (Object.getOwnPropertyDescriptor(schema, 'name')) {
     return Object.getOwnPropertyDescriptor(schema, 'name').value + ` (${baseName})`;
