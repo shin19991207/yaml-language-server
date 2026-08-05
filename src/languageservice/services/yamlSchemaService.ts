@@ -483,9 +483,9 @@ export class YAMLSchemaService implements IJSONSchemaService {
       }
       if (!path.isAbsolute(schemaRef)) {
         const resUri = URI.parse(resource);
-        schemaRef = URI.file(path.resolve(path.parse(resUri.fsPath).dir, schemaRef)).toString();
+        schemaRef = URI.file(path.resolve(path.parse(resUri.fsPath).dir, schemaRef)).toString(true);
       } else {
-        schemaRef = URI.file(schemaRef).toString();
+        schemaRef = URI.file(schemaRef).toString(true);
       }
       if (appendix.length > 0) {
         schemaRef += '#' + appendix;
