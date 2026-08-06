@@ -9,6 +9,7 @@ import * as sinon from 'sinon';
 import sinonChai from 'sinon-chai';
 import * as url from 'url';
 import { TextDocument } from 'vscode-languageserver-textdocument';
+import { URI } from 'vscode-uri';
 import * as YAML from 'yaml';
 import type { JSONSchema } from '../src/languageservice/jsonSchema';
 import { parse } from '../src/languageservice/parser/yamlParser07';
@@ -126,13 +127,61 @@ describe('YAML Schema Service', () => {
       if (process.platform === 'win32') {
         const driveLetter = path.parse(__dirname).root.split(':')[0].toLowerCase();
         expect(requestServiceMock).calledWithExactly(`file:///${driveLetter}:/schema.json`);
-        expect(requestServiceMock).calledWithExactly(`file:///${driveLetter}%3A/schema.json#/definitions/schemaArray`);
+        expect(requestServiceMock).calledWithExactly(`file:///${driveLetter}:/schema.json#/definitions/schemaArray`);
       } else {
         expect(requestServiceMock).calledWithExactly('file:///schema.json');
         expect(requestServiceMock).calledWithExactly('file:///schema.json#/definitions/schemaArray');
       }
 
       expect(schema.schema.type).eqls('array');
+    });
+
+    it('should resolve encoded characters in a relative modeline schema path', async () => {
+      const content = `# yaml-language-server: $schema=./encoded%20schema.json\nfoo: bar`;
+      const yamlDock = parse(content);
+      const resource = URI.file(path.join(__dirname, 'test.yaml')).toString();
+      const expectedSchemaPath = URI.parse(URI.file(path.join(__dirname, 'encoded schema.json')).toString()).fsPath;
+      requestServiceMock = sandbox.fake.resolves(
+        JSON.stringify({
+          type: 'object',
+          properties: {
+            foo: { type: 'string' },
+          },
+        })
+      );
+
+      const service = new SchemaService.YAMLSchemaService(requestServiceMock);
+      const schema = await service.getSchemaForResource(resource, yamlDock.documents[0]);
+
+      expect(requestServiceMock).calledOnce;
+      expect(URI.parse(requestServiceMock.firstCall.args[0]).fsPath).equals(expectedSchemaPath);
+      expect(schema.schema.properties.foo).to.include({ type: 'string' });
+    });
+
+    it('should resolve encoded characters in an absolute modeline schema path', async () => {
+      const rootPath = path.parse(__dirname).root.replace(/\\/g, '/');
+      const encodedSchemaPath = path.posix.join(rootPath, 'encoded%20schema.json');
+      const content = `# yaml-language-server: $schema=${encodedSchemaPath}\nfoo: bar`;
+      const yamlDock = parse(content);
+      const resource = URI.file(path.join(__dirname, 'test.yaml')).toString();
+      const expectedSchemaPath = URI.parse(
+        URI.file(path.join(path.parse(__dirname).root, 'encoded schema.json')).toString()
+      ).fsPath;
+      requestServiceMock = sandbox.fake.resolves(
+        JSON.stringify({
+          type: 'object',
+          properties: {
+            foo: { type: 'string' },
+          },
+        })
+      );
+
+      const service = new SchemaService.YAMLSchemaService(requestServiceMock);
+      const schema = await service.getSchemaForResource(resource, yamlDock.documents[0]);
+
+      expect(requestServiceMock).calledOnce;
+      expect(URI.parse(requestServiceMock.firstCall.args[0]).fsPath).equals(expectedSchemaPath);
+      expect(schema.schema.properties.foo).to.include({ type: 'string' });
     });
 
     for (const { description, uri } of [
