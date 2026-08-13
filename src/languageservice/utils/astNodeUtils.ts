@@ -21,7 +21,7 @@ export function getNodeValue(node: ASTNode): any {
     case 'number':
       return node.value;
     case 'boolean':
-      return node.source;
+      return node.value;
     default:
       return undefined;
   }
