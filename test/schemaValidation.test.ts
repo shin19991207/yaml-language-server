@@ -208,6 +208,72 @@ describe('Validation Tests', () => {
       assert.deepStrictEqual(result, []);
     });
 
+    it('Test object enum value containing a nested boolean', async () => {
+      schemaProvider.addSchema(SCHEMA_ID, {
+        type: 'object',
+        properties: {
+          parameter: {
+            type: 'object',
+            enum: [
+              {
+                required: true,
+              },
+            ],
+          },
+        },
+      });
+      const content = 'parameter:\n  required: true';
+      const result = await parseSetup(content);
+      assert.deepStrictEqual(result, []);
+    });
+
+    it('Test array enum value containing a nested boolean', async () => {
+      schemaProvider.addSchema(SCHEMA_ID, {
+        type: 'object',
+        properties: {
+          flags: {
+            type: 'array',
+            enum: [[true]],
+          },
+        },
+      });
+      const content = 'flags:\n  - true';
+      const result = await parseSetup(content);
+      assert.deepStrictEqual(result, []);
+    });
+
+    it('Test object const value containing a nested boolean', async () => {
+      schemaProvider.addSchema(SCHEMA_ID, {
+        type: 'object',
+        properties: {
+          parameter: {
+            type: 'object',
+            const: {
+              required: true,
+            },
+          },
+        },
+      });
+      const content = 'parameter:\n  required: true';
+      const result = await parseSetup(content);
+      assert.deepStrictEqual(result, []);
+    });
+
+    it('Test array const value containing a nested boolean', async () => {
+      schemaProvider.addSchema(SCHEMA_ID, {
+        type: 'object',
+        properties: {
+          flags: {
+            type: 'array',
+            const: [true],
+          },
+        },
+      });
+      const content = 'flags:\n  - true';
+      const result = await parseSetup(content);
+      assert.deepStrictEqual(result, []);
+    });
+
     it('Test that YAML 1.1 boolean "True" can be used in enum', async () => {
       // This test requires YAML 1.1 mode where "True" is parsed as a boolean
       languageService.configure(languageSettingsSetup.withYamlVersion('1.1').languageSettings);
